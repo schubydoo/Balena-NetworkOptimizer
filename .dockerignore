@@ -1,0 +1,138 @@
+### Git metadata ###
+# Git history, hooks, and attributes — never needed at image build/run time, only bloats the
+# build context. Keeping them out also avoids leaking commit info into images.
+
+.git/
+.gitignore
+.gitattributes
+
+### Claude Code ###
+# Session state, settings, todos, and project notes have no place in a production image and
+# may contain references to local paths or workflow details we don't want shipped.
+
+.claude/
+CLAUDE.md
+
+### This file ###
+# The build-context filter list shouldn't be inside the image itself.
+
+.dockerignore
+
+### Documentation ###
+# Markdown docs, the docs/ tree, and the license aren't needed at runtime. (License obligations
+# are usually met via image labels / OCI annotations, not by shipping the LICENSE file.)
+
+*.md
+docs/
+LICENSE
+
+### IDE / editor state ###
+# Per-developer machine state — non-reproducible and irrelevant to the running container.
+
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+
+### OS junk ###
+# Thumbnail caches, Finder metadata, and editor swap/backup files leak from host filesystems.
+
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+
+### Build outputs ###
+# Local compile artifacts — the image's RUN steps should produce their own from clean source.
+
+**/bin/
+**/obj/
+**/out/
+dist/
+build/
+
+### Node ###
+# Dependency trees and tool logs — `npm/yarn install` inside the image, never copy from host
+# (host node_modules can contain platform-specific native modules that break in-container).
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tgz
+
+### Python ###
+# Bytecode, type-checker caches, and virtualenvs — recreate inside the image to avoid
+# host-Python-version contamination.
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+### CI / VCS hosting metadata ###
+# Workflow definitions belong in the repo for CI, not in the runtime image.
+
+.github/
+.gitlab-ci.yml
+.circleci/
+
+### Balena CLI workspace + saved images ###
+# Generated locally by balena tooling. Including saved tarballs in the build context can
+# balloon image size and creates near-recursive build inputs.
+
+.balena/
+*.tar
+*.tar.gz
+
+### Local docker-compose overrides ###
+# Compose files aren't parsed during `docker build`, but keep them out so they can't be
+# accidentally COPY'd in by a broad `COPY . .` step.
+
+docker-compose.override.yml
+docker-compose.override.yaml
+
+### Logs / temp / backups ###
+# Stale runtime artifacts and editor backups have no place in a fresh build context.
+
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*.bak
+
+### Test results / coverage ###
+# Output of test runs — regenerated on every CI run, never shipped to production.
+
+coverage/
+**/TestResults/
+*.coverage
+*.coveragexml
+htmlcov/
+
+### Secrets — NEVER ship these into an image ###
+# Env files, keys, certs, and credential blobs. Anything baked into an image is recoverable
+# by anyone who pulls it. `.env.example` is the only template safe to include.
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.crt
+credentials.json
+secrets.json
+secrets/
+ssh-keys/
