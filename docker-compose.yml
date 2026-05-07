@@ -1,0 +1,77 @@
+# Balena port of Ozark-Connect/NetworkOptimizer.
+# Uses prebuilt upstream images from ghcr.io. To upgrade upstream, bump the
+# image tags below in their own PR; release with a corresponding VERSION bump.
+#
+# Upstream sources:
+#   https://github.com/Ozark-Connect/NetworkOptimizer
+#   https://github.com/Ozark-Connect/NetworkOptimizer/blob/main/docker/docker-compose.prod.yml
+
+version: '2.4'
+
+volumes:
+  data:
+  ssh-keys:
+  logs:
+
+services:
+  network-optimizer:
+    image: ghcr.io/ozark-connect/network-optimizer:1.4.3
+    network_mode: host
+    restart: always
+    volumes:
+      - data:/app/data
+      - ssh-keys:/app/ssh-keys
+      - logs:/app/logs
+    environment:
+      TZ: ${TZ:-America/Chicago}
+      # Bind to localhost only (when fronted by a reverse proxy) or all interfaces.
+      BIND_LOCALHOST_ONLY: ${BIND_LOCALHOST_ONLY:-false}
+      # REQUIRED at runtime. Set per-fleet/device via balenaCloud env vars.
+      APP_PASSWORD: ${APP_PASSWORD:-}
+      DEMO_MODE_MAPPINGS: ${DEMO_MODE_MAPPINGS:-}
+      # Host identity for path analysis and CORS (clients use these for speed tests).
+      HOST_IP: ${HOST_IP:-}
+      HOST_NAME: ${HOST_NAME:-}
+      REVERSE_PROXIED_HOST_NAME: ${REVERSE_PROXIED_HOST_NAME:-}
+      # OpenSpeedTest config (UI display + CORS for the speedtest service).
+      OPENSPEEDTEST_PORT: ${OPENSPEEDTEST_PORT:-3005}
+      OPENSPEEDTEST_HOST: ${OPENSPEEDTEST_HOST:-}
+      OPENSPEEDTEST_HTTPS: ${OPENSPEEDTEST_HTTPS:-false}
+      OPENSPEEDTEST_HTTPS_PORT: ${OPENSPEEDTEST_HTTPS_PORT:-443}
+      # iperf3 server on port 5201 — opt-in (set IPERF3_SERVER_ENABLED=true via fleet var).
+      Iperf3Server__Enabled: ${IPERF3_SERVER_ENABLED:-false}
+      # Logging levels: Trace | Debug | Information | Warning | Error | Critical
+      Logging__LogLevel__Default: ${LOG_LEVEL:-Information}
+      Logging__LogLevel__NetworkOptimizer: ${APP_LOG_LEVEL:-Information}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8042/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  network-optimizer-speedtest:
+    image: ghcr.io/ozark-connect/speedtest:1.4.4
+    restart: always
+    ports:
+      - "${OPENSPEEDTEST_PORT:-3005}:3000"
+    sysctls:
+      # Raise TCP autotuning ceiling so long-RTT single-stream speedtests aren't rwnd-bound.
+      # Without this the container's netns inherits the 6 MB kernel default, capping
+      # single-stream throughput at ~rwnd/RTT (~225 Mbps at 100 ms RTT).
+      net.ipv4.tcp_rmem: "4096 131072 33554432"
+      net.ipv4.tcp_wmem: "4096 65536 33554432"
+      net.ipv4.tcp_mtu_probing: "1"
+      # Note: tcp_congestion_control intentionally not set. Setting it to bbr hard-fails
+      # container start on kernels without the bbr module; sysctls in compose are
+      # all-or-nothing. Image entrypoint reports CC state and tells the operator
+      # how to enable bbr on the host if desired.
+    environment:
+      TZ: ${TZ:-America/Chicago}
+      HOST_NAME: ${HOST_NAME:-}
+      HOST_IP: ${HOST_IP:-}
+      OPENSPEEDTEST_PORT: ${OPENSPEEDTEST_PORT:-3005}
+      OPENSPEEDTEST_HOST: ${OPENSPEEDTEST_HOST:-}
+      OPENSPEEDTEST_HTTPS: ${OPENSPEEDTEST_HTTPS:-false}
+      OPENSPEEDTEST_HTTPS_PORT: ${OPENSPEEDTEST_HTTPS_PORT:-443}
+      REVERSE_PROXIED_HOST_NAME: ${REVERSE_PROXIED_HOST_NAME:-}
