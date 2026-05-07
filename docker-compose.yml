@@ -2,9 +2,23 @@
 # Uses prebuilt upstream images from ghcr.io. To upgrade upstream, bump the
 # image tags below in their own PR; release with a corresponding VERSION bump.
 #
-# All values under `environment:` are defaults. Override per-fleet or per-device
-# in the balenaCloud dashboard (Device Variables / Fleet Variables) — balena
-# does not support docker-compose ${VAR:-default} interpolation here.
+# Configuration model: values under `environment:` are baseline defaults.
+# Override per-fleet or per-device in the balenaCloud dashboard
+# (Variables → Service variables / Application variables) or via:
+#   balena env add KEY VALUE --fleet <slug> [--service <name>]
+#   balena env add KEY VALUE --device <uuid> [--service <name>]
+# balena does NOT support docker-compose ${VAR:-default} interpolation here.
+#
+# Operator-required variables (NOT declared below; set via balena):
+#   network-optimizer service:
+#     APP_PASSWORD                 (required) UI password
+#     HOST_IP                      device LAN IP (per-device)
+#     HOST_NAME                    device hostname (per-device)
+#     REVERSE_PROXIED_HOST_NAME    public hostname if behind a proxy
+#     OPENSPEEDTEST_HOST           public hostname for speedtest URL
+#     DEMO_MODE_MAPPINGS           rarely used; see upstream docs
+#   network-optimizer-speedtest service:
+#     HOST_IP, HOST_NAME, OPENSPEEDTEST_HOST, REVERSE_PROXIED_HOST_NAME
 #
 # Upstream sources:
 #   https://github.com/Ozark-Connect/NetworkOptimizer
@@ -30,16 +44,10 @@ services:
       TZ: America/Chicago
       # Bind to localhost only (when fronted by a reverse proxy) or all interfaces.
       BIND_LOCALHOST_ONLY: "false"
-      # REQUIRED at runtime. Set per-fleet/device via balenaCloud env vars.
-      APP_PASSWORD: ""
-      DEMO_MODE_MAPPINGS: ""
-      # Host identity for path analysis and CORS (clients use these for speed tests).
-      HOST_IP: ""
-      HOST_NAME: ""
-      REVERSE_PROXIED_HOST_NAME: ""
-      # OpenSpeedTest config (UI display + CORS for the speedtest service).
+      # OpenSpeedTest — port settings are tightly coupled to the host:container
+      # port mapping below; changing them via balena vars without also editing
+      # the compose `ports:` will break the speedtest service.
       OPENSPEEDTEST_PORT: "3005"
-      OPENSPEEDTEST_HOST: ""
       OPENSPEEDTEST_HTTPS: "false"
       OPENSPEEDTEST_HTTPS_PORT: "443"
       # iperf3 server on port 5201 — opt-in (set Iperf3Server__Enabled=true via fleet var).
@@ -60,7 +68,7 @@ services:
     ports:
       # Host:container. Hardcoded because balena's compose validator rejects
       # ${VAR} interpolation in typed fields. To change the host port, edit here
-      # and keep the OPENSPEEDTEST_PORT env var on network-optimizer in sync.
+      # and keep OPENSPEEDTEST_PORT on network-optimizer in sync.
       - "3005:3000"
     sysctls:
       # Raise TCP autotuning ceiling so long-RTT single-stream speedtests aren't rwnd-bound.
@@ -75,10 +83,6 @@ services:
       # how to enable bbr on the host if desired.
     environment:
       TZ: America/Chicago
-      HOST_NAME: ""
-      HOST_IP: ""
       OPENSPEEDTEST_PORT: "3005"
-      OPENSPEEDTEST_HOST: ""
       OPENSPEEDTEST_HTTPS: "false"
       OPENSPEEDTEST_HTTPS_PORT: "443"
-      REVERSE_PROXIED_HOST_NAME: ""
