@@ -1,4 +1,4 @@
 name: balena-network-optimizer
 type: sw.application
-version: 0.1.0
-description: balenaOS port of Ozark-Connect/NetworkOptimizer
+version: 0.2.0
+description: balenaOS port of Ozark-Connect/NetworkOptimizer (source-built per arch).
