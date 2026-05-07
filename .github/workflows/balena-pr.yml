@@ -1,0 +1,62 @@
+name: balena PR build (test fleets)
+
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test-aarch64:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: balena-pr-${{ github.event.pull_request.number }}-aarch64
+      cancel-in-progress: ${{ github.event.action != 'closed' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: build
+        uses: balena-io/deploy-to-balena-action@v2.2.0
+        with:
+          balena_token: ${{ secrets.BALENA_API_TOKEN }}
+          fleet: ${{ secrets.BALENA_FLEET_TEST_AARCH64 }}
+      - if: steps.build.outputs.release_id != ''
+        run: echo "release_id=${{ steps.build.outputs.release_id }} version=${{ steps.build.outputs.version }}"
+
+  test-amd64:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: balena-pr-${{ github.event.pull_request.number }}-amd64
+      cancel-in-progress: ${{ github.event.action != 'closed' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: build
+        uses: balena-io/deploy-to-balena-action@v2.2.0
+        with:
+          balena_token: ${{ secrets.BALENA_API_TOKEN }}
+          fleet: ${{ secrets.BALENA_FLEET_TEST_AMD64 }}
+      - if: steps.build.outputs.release_id != ''
+        run: echo "release_id=${{ steps.build.outputs.release_id }} version=${{ steps.build.outputs.version }}"
+
+  test-arm7hf:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: balena-pr-${{ github.event.pull_request.number }}-arm7hf
+      cancel-in-progress: ${{ github.event.action != 'closed' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: build
+        uses: balena-io/deploy-to-balena-action@v2.2.0
+        with:
+          balena_token: ${{ secrets.BALENA_API_TOKEN }}
+          fleet: ${{ secrets.BALENA_FLEET_TEST_ARM7HF }}
+      - if: steps.build.outputs.release_id != ''
+        run: echo "release_id=${{ steps.build.outputs.release_id }} version=${{ steps.build.outputs.version }}"

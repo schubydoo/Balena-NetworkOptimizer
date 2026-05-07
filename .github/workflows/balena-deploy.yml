@@ -1,0 +1,48 @@
+name: balena deploy (prod)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy (must match VERSION file). Used for ad-hoc redeploys."
+        required: true
+
+concurrency:
+  group: balena-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name || format('refs/tags/v{0}', inputs.version) }}
+
+      - name: Validate version alignment
+        run: |
+          TAG="${{ github.event.release.tag_name || format('v{0}', inputs.version) }}"
+          TAG_VERSION="${TAG#v}"
+          FILE_VERSION="$(cat VERSION | tr -d '[:space:]')"
+          YAML_VERSION="$(awk '/^version:/ {print $2; exit}' .balena/balena.yml | tr -d '[:space:]')"
+          echo "tag=$TAG_VERSION  VERSION=$FILE_VERSION  balena.yml=$YAML_VERSION"
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ] || [ "$FILE_VERSION" != "$YAML_VERSION" ]; then
+            echo "::error::Version mismatch. Tag, VERSION, and .balena/balena.yml must all match."
+            exit 1
+          fi
+
+      - name: Deploy to production fleet
+        id: deploy
+        uses: balena-io/deploy-to-balena-action@v2.2.0
+        with:
+          balena_token: ${{ secrets.BALENA_API_TOKEN }}
+          fleet: ${{ secrets.BALENA_FLEET_PROD }}
+
+      - if: steps.deploy.outputs.release_id != ''
+        run: echo "release_id=${{ steps.deploy.outputs.release_id }} version=${{ steps.deploy.outputs.version }}"
