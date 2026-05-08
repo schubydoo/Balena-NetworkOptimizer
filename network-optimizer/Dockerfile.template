@@ -100,9 +100,16 @@ ARG TARGETARCH=amd64
 
 WORKDIR /app
 
-# Runtime utilities + tini (init: zombie reaper + signal proxy)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl iputils-ping libssl3 gosu sqlite3 tini ca-certificates \
+# Runtime utilities + tini (init: zombie reaper + signal proxy).
+# libssl3 was renamed libssl3t64 on Ubuntu's 32-bit arches (armhf, i386) as
+# part of the 64-bit time_t transition; pick the right name per arch.
+RUN apt-get update && \
+    case "${TARGETARCH}" in \
+        arm) LIBSSL_PKG="libssl3t64" ;; \
+        *)   LIBSSL_PKG="libssl3"    ;; \
+    esac && \
+    apt-get install -y --no-install-recommends \
+        curl iputils-ping ${LIBSSL_PKG} gosu sqlite3 tini ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # iperf3 from source build
