@@ -43,9 +43,12 @@ jobs:
           TAG_VERSION="${TAG#v}"
           FILE_VERSION="$(cat VERSION | tr -d '[:space:]')"
           YAML_VERSION="$(awk '/^version:/ {print $2; exit}' .balena/balena.yml | tr -d '[:space:]')"
-          echo "tag=$TAG_VERSION  VERSION=$FILE_VERSION  balena.yml=$YAML_VERSION"
-          if [ "$TAG_VERSION" != "$FILE_VERSION" ] || [ "$FILE_VERSION" != "$YAML_VERSION" ]; then
-            echo "::error::Version mismatch. Tag, VERSION, and .balena/balena.yml must all match."
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "tag=$TAG_VERSION  VERSION=$FILE_VERSION  balena.yml=$YAML_VERSION  package.json=$PKG_VERSION"
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ] \
+              || [ "$FILE_VERSION" != "$YAML_VERSION" ] \
+              || [ "$YAML_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Version mismatch. Tag, VERSION, .balena/balena.yml, and package.json must all match."
             exit 1
           fi
 
