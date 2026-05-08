@@ -50,18 +50,27 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
 # --- Stage 2: build uwnspeedtest Go binaries
 #  - Local (matches container arch): server-side WAN speed tests
 #  - Gateway (always linux/arm64): SSH-deployed to UniFi gateways
+# Detect arch via `uname -m` rather than ${TARGETARCH}: balena's classic
+# builder doesn't auto-populate the BuildKit TARGETARCH ARG, so the kernel's
+# own view (set by Docker per-image-arch, including under QEMU emulation) is
+# what we need.
 FROM golang:1.22-alpine AS uwnspeedtest-build
-ARG TARGETARCH=amd64
 ARG UPSTREAM_VERSION=v1.15.10
 WORKDIR /src
 COPY --from=source /src/src/cfspeedtest cfspeedtest
 COPY --from=source /src/src/uwnspeedtest uwnspeedtest
 WORKDIR /src/uwnspeedtest
 RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
-    case "${TARGETARCH}" in \
-        arm) export GOARM=7 ;; \
+    case "$(uname -m)" in \
+        x86_64)  LOCAL_GOARCH=amd64 LOCAL_GOARM= ;; \
+        aarch64) LOCAL_GOARCH=arm64 LOCAL_GOARM= ;; \
+        armv7l)  LOCAL_GOARCH=arm   LOCAL_GOARM=7 ;; \
+        armv6l)  LOCAL_GOARCH=arm   LOCAL_GOARM=6 ;; \
+        i686)    LOCAL_GOARCH=386   LOCAL_GOARM= ;; \
+        *) echo "Unsupported arch: $(uname -m)"; exit 1 ;; \
     esac && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -trimpath \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${LOCAL_GOARCH} GOARM=${LOCAL_GOARM} \
+        go build -trimpath \
         -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
         -o /uwnspeedtest-local . && \
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
@@ -96,7 +105,6 @@ RUN curl -fLO --retry 3 --retry-delay 5 \
 
 # --- Stage 5: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
-ARG TARGETARCH=amd64
 
 WORKDIR /app
 
@@ -123,11 +131,23 @@ RUN ldconfig
 # Published .NET app
 COPY --from=build /app/publish ./
 
-# Tools dir + Go binaries
+# Tools dir + Go binaries.
+# Gateway binaries always live at their fixed arm64 names. The local
+# uwnspeedtest binary lands first at a temp path, then gets renamed to
+# `uwnspeedtest-linux-<arch>` based on the runtime image's actual arch
+# (the .NET app looks for that filename pattern).
 RUN mkdir -p /app/tools
-COPY --from=uwnspeedtest-build /uwnspeedtest-local /app/tools/uwnspeedtest-linux-${TARGETARCH:-amd64}
+COPY --from=uwnspeedtest-build /uwnspeedtest-local /tmp/uwnspeedtest-local
 COPY --from=uwnspeedtest-build /uwnspeedtest-gateway /app/tools/uwnspeedtest-linux-arm64
 COPY --from=wansteer-build /wansteer-gateway /app/tools/wansteer-linux-arm64
+RUN case "$(dpkg --print-architecture)" in \
+        amd64) ARCH_SUFFIX=amd64 ;; \
+        arm64) ARCH_SUFFIX=arm64 ;; \
+        armhf) ARCH_SUFFIX=arm   ;; \
+        i386)  ARCH_SUFFIX=386   ;; \
+        *) echo "Unsupported arch: $(dpkg --print-architecture)"; exit 1 ;; \
+    esac && \
+    mv /tmp/uwnspeedtest-local /app/tools/uwnspeedtest-linux-${ARCH_SUFFIX}
 
 # Volume mount points so upstream's chown succeeds on first run
 RUN mkdir -p /app/data /app/ssh-keys /app/logs
