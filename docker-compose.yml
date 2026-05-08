@@ -1,0 +1,54 @@
+# Balena multi-container compose for the NetworkOptimizer port.
+# Each service has its own directory with a Dockerfile.template and start.sh.
+# Operator config (APP_PASSWORD, HOST_IP, HOST_NAME, OPENSPEEDTEST_HOST, etc.)
+# is set via balenaCloud Service or Device variables — NOT in this file —
+# so the supervisor injects them at container start.
+#
+# Bumping the upstream version: change UPSTREAM_VERSION in both build args.
+#
+# Upstream source:
+#   https://github.com/Ozark-Connect/NetworkOptimizer
+
+version: '2.4'
+
+volumes:
+  data:
+  ssh-keys:
+  logs:
+
+services:
+  network-optimizer:
+    build:
+      context: ./network-optimizer
+      args:
+        UPSTREAM_VERSION: v1.15.10
+        IPERF3_VERSION: "3.20"
+    network_mode: host
+    restart: always
+    volumes:
+      - data:/app/data
+      - ssh-keys:/app/ssh-keys
+      - logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8042/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  network-optimizer-speedtest:
+    build:
+      context: ./network-optimizer-speedtest
+      args:
+        UPSTREAM_VERSION: v1.15.10
+    restart: always
+    ports:
+      - "3005:3000"
+    sysctls:
+      # Raise TCP autotuning ceiling so long-RTT single-stream speedtests
+      # aren't rwnd-bound. Without this the container's netns inherits the
+      # 6 MB kernel default, capping single-stream throughput at ~rwnd/RTT
+      # (~225 Mbps at 100 ms RTT).
+      net.ipv4.tcp_rmem: "4096 131072 33554432"
+      net.ipv4.tcp_wmem: "4096 65536 33554432"
+      net.ipv4.tcp_mtu_probing: "1"

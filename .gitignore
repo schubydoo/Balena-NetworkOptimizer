@@ -19,6 +19,10 @@ docker-compose.override.yaml
 *.tar
 *.tar.gz
 
+# Local build / push logs — captured for troubleshooting, not for source control.
+# Convention: .logs/balena-push-<arch>-<timestamp>.log
+.logs/
+
 ### Env files (additions) ###
 # Broadens the Node template's narrow .env.*.local rules to cover any .env.* variant
 # (e.g. .env.staging, .env.balena) while keeping a committable template.

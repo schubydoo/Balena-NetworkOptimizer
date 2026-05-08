@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1.6
+# Multi-stage build for the OpenSpeedTest service.
+# Clones upstream and replicates upstream's docker/openspeedtest/Dockerfile.
+
+# --- Stage 0: fetch upstream source at the pinned version
+FROM alpine:3.20 AS source
+ARG UPSTREAM_VERSION=v1.15.10
+RUN apk add --no-cache git
+RUN git clone --depth 1 --branch ${UPSTREAM_VERSION} \
+    https://github.com/Ozark-Connect/NetworkOptimizer.git /src
+
+# --- Final stage: nginx with upstream's customized OpenSpeedTest content
+# Pin to nginx 1.26 to match upstream (1.29+ has caching behavior changes).
+FROM nginx:1.26-alpine
+
+# tini for signal handling / zombie reaping (defensive; nginx itself handles signals fine)
+RUN apk add --no-cache tini
+
+# Customized OpenSpeedTest static files
+COPY --from=source /src/src/OpenSpeedTest/ /usr/share/nginx/html/
+
+# nginx config
+COPY --from=source /src/docker/openspeedtest/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Upstream's entrypoint script
+COPY --from=source /src/docker/openspeedtest/entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Our balena start.sh wrapper
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
+EXPOSE 3000
+
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start.sh"]
+CMD ["nginx", "-g", "daemon off;"]
