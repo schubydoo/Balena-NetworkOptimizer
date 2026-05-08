@@ -1,0 +1,6 @@
+{
+  "name": "balena-network-optimizer",
+  "version": "0.2.0",
+  "private": true,
+  "description": "balena CLI reads `version` here when assigning release semver. Keep in lockstep with VERSION and .balena/balena.yml -- the deploy workflow validates all three match the release tag."
+}
