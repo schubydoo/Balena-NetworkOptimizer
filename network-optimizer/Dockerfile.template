@@ -103,10 +103,13 @@ WORKDIR /app
 # Runtime utilities + tini (init: zombie reaper + signal proxy).
 # libssl3 was renamed libssl3t64 on Ubuntu's 32-bit arches (armhf, i386) as
 # part of the 64-bit time_t transition; pick the right name per arch.
+# Use `dpkg --print-architecture` rather than ${TARGETARCH}: balena's classic
+# builder doesn't auto-populate the BuildKit TARGETARCH ARG, so dpkg's view of
+# the container's own arch is more reliable.
 RUN apt-get update && \
-    case "${TARGETARCH}" in \
-        arm) LIBSSL_PKG="libssl3t64" ;; \
-        *)   LIBSSL_PKG="libssl3"    ;; \
+    case "$(dpkg --print-architecture)" in \
+        armhf|i386) LIBSSL_PKG="libssl3t64" ;; \
+        *)          LIBSSL_PKG="libssl3"    ;; \
     esac && \
     apt-get install -y --no-install-recommends \
         curl iputils-ping ${LIBSSL_PKG} gosu sqlite3 tini ca-certificates \
