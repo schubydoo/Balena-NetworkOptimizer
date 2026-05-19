@@ -85,7 +85,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["Dockerfile\\.template$"],
+      "managerFilePatterns": [
+        "/Dockerfile\\.template$/"
+      ],
       "matchStrings": [
         "# renovate: alpine-package=(?<packageName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)_VERSION=(?<currentValue>[^\\n]+)"
       ],
@@ -95,7 +97,9 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["Dockerfile\\.template$"],
+      "managerFilePatterns": [
+        "/Dockerfile\\.template$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)=(?<currentValue>[^\\n]+)"
       ]
