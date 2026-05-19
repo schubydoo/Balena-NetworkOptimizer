@@ -1,0 +1,23 @@
+# Trivy suppressions — https://trivy.dev/latest/docs/configuration/filtering/
+# Wired into CI via the `trivyignores:` input in .github/workflows/trivy.yml.
+#
+# AVD-DS-0002 "Image user should not be 'root'":
+# False positive for this app's deliberate init pattern. Upstream's
+# docker/entrypoint.sh MUST start as root to `chown` the mounted volumes
+# (/app/data, /app/ssh-keys, /app/logs) on first run, then drops to the
+# unprivileged `app` user via `exec gosu app dotnet NetworkOptimizer.Web.dll`.
+# Adding a `USER` directive would break first-run volume ownership; the
+# application process never runs as root at runtime. Scoped to the
+# network-optimizer Dockerfiles only (.template = balena, .ghcr = GHCR
+# cross-build) so any new Dockerfile is still scanned. Re-review on expiry.
+misconfigurations:
+  - id: AVD-DS-0002
+    paths:
+      - "network-optimizer/Dockerfile.template"
+      - "network-optimizer/Dockerfile.ghcr"
+    statement: >-
+      Container intentionally starts as root so upstream's docker/entrypoint.sh
+      can chown mounted volumes, then drops to the unprivileged 'app' user via
+      `exec gosu app ...`. A USER directive would break first-run volume
+      ownership; the app never runs as root at runtime.
+    expired_at: 2027-05-19

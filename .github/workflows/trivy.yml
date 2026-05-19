@@ -33,6 +33,8 @@ jobs:
           output: trivy-results.sarif
           ignore-unfixed: true
           exit-code: '0'
+          # Documented, path-scoped, expiring suppressions (see file header).
+          trivyignores: .trivyignore.yaml
       - name: Upload results
         # Skip SARIF upload for fork PRs (no security-events write token).
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
