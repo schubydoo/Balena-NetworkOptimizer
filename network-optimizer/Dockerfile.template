@@ -6,8 +6,8 @@
 # --- Stage 0: fetch upstream source at the pinned version
 FROM alpine:3.20 AS source
 ARG UPSTREAM_VERSION=v1.15.10
-RUN apk add --no-cache git
-RUN git clone --depth 1 --branch ${UPSTREAM_VERSION} \
+RUN apk add --no-cache git && \
+    git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
 
 # --- Stage 1: build .NET app
@@ -17,30 +17,32 @@ ARG VERSION
 WORKDIR /src
 
 # csproj copy first for layer caching (mirrors upstream's order)
-COPY --from=source /src/NetworkOptimizer.sln ./
-COPY --from=source /src/Directory.Build.props ./
-COPY --from=source /src/nuget.config ./
-COPY --from=source /src/packages packages
-COPY --from=source /src/src/NetworkOptimizer.Core/NetworkOptimizer.Core.csproj src/NetworkOptimizer.Core/
-COPY --from=source /src/src/NetworkOptimizer.Web/NetworkOptimizer.Web.csproj src/NetworkOptimizer.Web/
-COPY --from=source /src/src/NetworkOptimizer.UniFi/NetworkOptimizer.UniFi.csproj src/NetworkOptimizer.UniFi/
-COPY --from=source /src/src/NetworkOptimizer.Audit/NetworkOptimizer.Audit.csproj src/NetworkOptimizer.Audit/
-COPY --from=source /src/src/NetworkOptimizer.Sqm/NetworkOptimizer.Sqm.csproj src/NetworkOptimizer.Sqm/
-COPY --from=source /src/src/NetworkOptimizer.Monitoring/NetworkOptimizer.Monitoring.csproj src/NetworkOptimizer.Monitoring/
-COPY --from=source /src/src/NetworkOptimizer.Storage/NetworkOptimizer.Storage.csproj src/NetworkOptimizer.Storage/
-COPY --from=source /src/src/NetworkOptimizer.Agents/NetworkOptimizer.Agents.csproj src/NetworkOptimizer.Agents/
-COPY --from=source /src/src/NetworkOptimizer.Reports/NetworkOptimizer.Reports.csproj src/NetworkOptimizer.Reports/
-COPY --from=source /src/src/NetworkOptimizer.Diagnostics/NetworkOptimizer.Diagnostics.csproj src/NetworkOptimizer.Diagnostics/
-COPY --from=source /src/src/NetworkOptimizer.WiFi/NetworkOptimizer.WiFi.csproj src/NetworkOptimizer.WiFi/
-COPY --from=source /src/src/NetworkOptimizer.Alerts/NetworkOptimizer.Alerts.csproj src/NetworkOptimizer.Alerts/
-COPY --from=source /src/src/NetworkOptimizer.Threats/NetworkOptimizer.Threats.csproj src/NetworkOptimizer.Threats/
+COPY --link --from=source /src/NetworkOptimizer.sln ./
+COPY --link --from=source /src/Directory.Build.props ./
+COPY --link --from=source /src/nuget.config ./
+COPY --link --from=source /src/packages packages
+COPY --link --from=source /src/src/NetworkOptimizer.Core/NetworkOptimizer.Core.csproj src/NetworkOptimizer.Core/
+COPY --link --from=source /src/src/NetworkOptimizer.Web/NetworkOptimizer.Web.csproj src/NetworkOptimizer.Web/
+COPY --link --from=source /src/src/NetworkOptimizer.UniFi/NetworkOptimizer.UniFi.csproj src/NetworkOptimizer.UniFi/
+COPY --link --from=source /src/src/NetworkOptimizer.Audit/NetworkOptimizer.Audit.csproj src/NetworkOptimizer.Audit/
+COPY --link --from=source /src/src/NetworkOptimizer.Sqm/NetworkOptimizer.Sqm.csproj src/NetworkOptimizer.Sqm/
+COPY --link --from=source /src/src/NetworkOptimizer.Monitoring/NetworkOptimizer.Monitoring.csproj src/NetworkOptimizer.Monitoring/
+COPY --link --from=source /src/src/NetworkOptimizer.Storage/NetworkOptimizer.Storage.csproj src/NetworkOptimizer.Storage/
+COPY --link --from=source /src/src/NetworkOptimizer.Agents/NetworkOptimizer.Agents.csproj src/NetworkOptimizer.Agents/
+COPY --link --from=source /src/src/NetworkOptimizer.Reports/NetworkOptimizer.Reports.csproj src/NetworkOptimizer.Reports/
+COPY --link --from=source /src/src/NetworkOptimizer.Diagnostics/NetworkOptimizer.Diagnostics.csproj src/NetworkOptimizer.Diagnostics/
+COPY --link --from=source /src/src/NetworkOptimizer.WiFi/NetworkOptimizer.WiFi.csproj src/NetworkOptimizer.WiFi/
+COPY --link --from=source /src/src/NetworkOptimizer.Alerts/NetworkOptimizer.Alerts.csproj src/NetworkOptimizer.Alerts/
+COPY --link --from=source /src/src/NetworkOptimizer.Threats/NetworkOptimizer.Threats.csproj src/NetworkOptimizer.Threats/
 
-RUN dotnet restore "src/NetworkOptimizer.Web/NetworkOptimizer.Web.csproj"
+RUN --mount=type=cache,target=/root/.nuget/packages \
+    dotnet restore "src/NetworkOptimizer.Web/NetworkOptimizer.Web.csproj"
 
-COPY --from=source /src/src src
+COPY --link --from=source /src/src src
 
 # Default the .NET assembly version to UPSTREAM_VERSION (sans 'v') if VERSION arg unset.
-RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
+RUN --mount=type=cache,target=/root/.nuget/packages \
+    MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
     dotnet publish "src/NetworkOptimizer.Web/NetworkOptimizer.Web.csproj" \
         -c Release \
         -o /app/publish \
@@ -57,10 +59,12 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
 FROM golang:1.22-alpine AS uwnspeedtest-build
 ARG UPSTREAM_VERSION=v1.15.10
 WORKDIR /src
-COPY --from=source /src/src/cfspeedtest cfspeedtest
-COPY --from=source /src/src/uwnspeedtest uwnspeedtest
+COPY --link --from=source /src/src/cfspeedtest cfspeedtest
+COPY --link --from=source /src/src/uwnspeedtest uwnspeedtest
 WORKDIR /src/uwnspeedtest
-RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
     case "$(uname -m)" in \
         x86_64)  LOCAL_GOARCH=amd64 LOCAL_GOARM= ;; \
         aarch64) LOCAL_GOARCH=arm64 LOCAL_GOARM= ;; \
@@ -81,9 +85,11 @@ RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
 FROM golang:1.22-alpine AS wansteer-build
 ARG UPSTREAM_VERSION=v1.15.10
 WORKDIR /src
-COPY --from=source /src/src/wansteer wansteer
+COPY --link --from=source /src/src/wansteer wansteer
 WORKDIR /src/wansteer
-RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
         -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
         -o /wansteer-gateway .
@@ -120,16 +126,16 @@ RUN apt-get update && \
         *)          LIBSSL_PKG="libssl3"    ;; \
     esac && \
     apt-get install -y --no-install-recommends \
-        curl iputils-ping ${LIBSSL_PKG} gosu sqlite3 tini ca-certificates \
+        ca-certificates curl gosu iputils-ping ${LIBSSL_PKG} sqlite3 tini \
     && rm -rf /var/lib/apt/lists/*
 
 # iperf3 from source build
-COPY --from=iperf-build /usr/local/bin/iperf3 /usr/local/bin/
-COPY --from=iperf-build /usr/local/lib/libiperf* /usr/local/lib/
+COPY --link --from=iperf-build /usr/local/bin/iperf3 /usr/local/bin/
+COPY --link --from=iperf-build /usr/local/lib/libiperf* /usr/local/lib/
 RUN ldconfig
 
 # Published .NET app
-COPY --from=build /app/publish ./
+COPY --link --from=build /app/publish ./
 
 # Tools dir + Go binaries.
 # Gateway binaries always live at their fixed arm64 names. The local
@@ -137,9 +143,9 @@ COPY --from=build /app/publish ./
 # `uwnspeedtest-linux-<arch>` based on the runtime image's actual arch
 # (the .NET app looks for that filename pattern).
 RUN mkdir -p /app/tools
-COPY --from=uwnspeedtest-build /uwnspeedtest-local /tmp/uwnspeedtest-local
-COPY --from=uwnspeedtest-build /uwnspeedtest-gateway /app/tools/uwnspeedtest-linux-arm64
-COPY --from=wansteer-build /wansteer-gateway /app/tools/wansteer-linux-arm64
+COPY --link --from=uwnspeedtest-build /uwnspeedtest-local /tmp/uwnspeedtest-local
+COPY --link --from=uwnspeedtest-build /uwnspeedtest-gateway /app/tools/uwnspeedtest-linux-arm64
+COPY --link --from=wansteer-build /wansteer-gateway /app/tools/wansteer-linux-arm64
 RUN case "$(dpkg --print-architecture)" in \
         amd64) ARCH_SUFFIX=amd64 ;; \
         arm64) ARCH_SUFFIX=arm64 ;; \
@@ -153,7 +159,7 @@ RUN case "$(dpkg --print-architecture)" in \
 RUN mkdir -p /app/data /app/ssh-keys /app/logs
 
 # Upstream's entrypoint — chowns volumes, drops to 'app' user, execs dotnet
-COPY --from=source /src/docker/entrypoint.sh /entrypoint.sh
+COPY --link --from=source /src/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Our balena start.sh wrapper — env dump for troubleshooting, then exec upstream entrypoint
