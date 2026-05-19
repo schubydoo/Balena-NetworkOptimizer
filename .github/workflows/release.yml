@@ -75,16 +75,6 @@ jobs:
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp \
             && mv package.json.tmp package.json
           sed -i "s/^version: .*/version: ${NEW_VERSION}/" balena.yml
-          # Update package-lock.json if present
-          if [ -f package-lock.json ]; then
-            node -e "
-              const fs = require('fs');
-              const lock = JSON.parse(fs.readFileSync('package-lock.json'));
-              lock.version = '${NEW_VERSION}';
-              if (lock.packages && lock.packages['']) lock.packages[''].version = '${NEW_VERSION}';
-              fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
-            "
-          fi
 
       - name: Prepend CHANGELOG entry
         if: steps.detect.outputs.change_type != ''
@@ -115,7 +105,6 @@ jobs:
           git config user.name "Schuby"
           git config user.email "schubydoo@users.noreply.github.com"
           git add VERSION package.json balena.yml CHANGELOG.md
-          [ -f package-lock.json ] && git add package-lock.json || true
           git commit -m "Release ${NEW_VERSION}"
           git tag "v${NEW_VERSION}"
           git push origin main
