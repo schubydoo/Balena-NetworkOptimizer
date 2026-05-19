@@ -3,12 +3,14 @@
 # Stage 0 clones upstream at the pinned tag; subsequent stages build from /src.
 # Mirrors upstream's docker/Dockerfile so feature parity is preserved.
 #
-# balena builds from THIS file (native per-arch workers, no QEMU). The GHCR
-# mirror cross-builds via buildx+QEMU and uses network-optimizer/Dockerfile.ghcr
-# instead — a copy of this file whose ONLY difference is the Stage 1 FROM
-# (pinned to $BUILDPLATFORM). Keep both in sync for every other stage.
-# Do NOT add `--platform=$BUILDPLATFORM` here: balena's classic builder is
-# not BuildKit, leaves BUILDPLATFORM empty, and rejects an empty --platform=.
+# *** GHCR / buildx ONLY — NOT for balena. ***
+# This is a copy of Dockerfile.template that differs in EXACTLY ONE place:
+# Stage 1's `FROM` is pinned to --platform=$BUILDPLATFORM so the .NET SDK
+# cross-builds natively on the amd64 GitHub runner (no QEMU -> no exit 134).
+# balena builds every arch on native workers (no QEMU) and uses
+# Dockerfile.template, whose classic (non-BuildKit) builder rejects an
+# empty `--platform=`. Keep this file in sync with Dockerfile.template for
+# EVERY stage except the Stage 1 FROM line below.
 
 # --- Stage 0: fetch upstream source at the pinned version
 FROM alpine:3.20 AS source
@@ -18,8 +20,22 @@ RUN apk add --no-cache git && \
     git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
 
-# --- Stage 1: build .NET app
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# --- Stage 1: build .NET app (SDK runs on the BUILD platform, not the target)
+# Upstream's entrypoint runs `dotnet NetworkOptimizer.Web.dll` (verified in
+# upstream docker/entrypoint.sh @ v1.15.10) — framework-dependent, portable
+# IL; the native apphost is never executed. So the publish output is
+# architecture-neutral and the per-target aspnet runtime stage can COPY it
+# as-is. Pinning this stage to BUILDPLATFORM keeps buildx multi-arch builds
+# (the GHCR mirror) from running the .NET SDK under QEMU: `dotnet restore`
+# SIGABRTs (exit 134) under arm/v7 emulation (CI run 26080536696). Pinning
+# QEMU (commit 56e73fc) did not help and is abandoned.
+# BUILDPLATFORM is auto-populated by BuildKit (buildx/GHCR only). balena's
+# classic builder is NOT BuildKit, leaves it empty, and rejects an empty
+# `--platform=` — which is why this cross-build lives in this GHCR-only file
+# and Dockerfile.template (built by balena's native per-arch workers) does
+# NOT carry it. THIS LINE is the only intended difference from the template.
+ARG BUILDPLATFORM
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0 AS build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.15.10
 ARG VERSION

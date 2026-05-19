@@ -20,8 +20,13 @@ jobs:
         include:
           - service: network-optimizer
             image: ghcr.io/schubydoo/balena-network-optimizer
+            # buildx/GHCR-only cross-build variant (Stage 1 pinned to
+            # $BUILDPLATFORM). balena uses Dockerfile.template instead.
+            dockerfile: network-optimizer/Dockerfile.ghcr
           - service: network-optimizer-speedtest
             image: ghcr.io/schubydoo/balena-network-optimizer-speedtest
+            # No .NET; nginx multi-arch builds fine under QEMU as-is.
+            dockerfile: network-optimizer-speedtest/Dockerfile.template
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
@@ -31,12 +36,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
         with:
-          # The action default pulled QEMU v10.2.1, which SIGABRTs the .NET
-          # SDK during `dotnet restore` under arm/v7 emulation (v0.2.1 GHCR
-          # build, exit 134). Pin an older, more .NET-stable binfmt/QEMU
-          # build. Experiment: if arm/v7 still aborts, drop arm/v7 from the
-          # network-optimizer image (balena builds all arches natively for
-          # the fleet — GHCR is only a mirror).
+          # QEMU is still required: the arm64/arm-v7 runtime, iperf3 (C) and
+          # Go stages build under emulation here. The .NET SDK no longer
+          # does — Dockerfile.ghcr cross-builds it natively on the amd64
+          # runner (--platform=$BUILDPLATFORM), eliminating the old
+          # `dotnet restore` SIGABRT (exit 134). The binfmt pin is kept as a
+          # harmless stable floor for the remaining QEMU-tolerant steps.
+          # balena is unaffected: native per-arch workers, no QEMU.
           image: tonistiigi/binfmt:qemu-v8.1.5
       - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
       - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
@@ -62,7 +68,7 @@ jobs:
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7
         with:
           context: ${{ matrix.service }}
-          file: ${{ matrix.service }}/Dockerfile.template
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ github.event_name != 'workflow_dispatch' }}
           tags: ${{ steps.meta.outputs.tags }}
