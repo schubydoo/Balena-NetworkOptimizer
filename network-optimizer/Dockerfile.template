@@ -56,7 +56,7 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
 # builder doesn't auto-populate the BuildKit TARGETARCH ARG, so the kernel's
 # own view (set by Docker per-image-arch, including under QEMU emulation) is
 # what we need.
-FROM golang:1.22-alpine AS uwnspeedtest-build
+FROM golang:1.26-alpine AS uwnspeedtest-build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.15.10
 WORKDIR /src
@@ -81,7 +81,7 @@ RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
         -o /uwnspeedtest-gateway .
 
 # --- Stage 3: build wansteer (gateway-only, always linux/arm64)
-FROM golang:1.22-alpine AS wansteer-build
+FROM golang:1.26-alpine AS wansteer-build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.15.10
 WORKDIR /src
@@ -103,8 +103,9 @@ WORKDIR /tmp
 RUN curl -fLO --retry 3 --retry-delay 5 \
         https://github.com/esnet/iperf/releases/download/${IPERF3_VERSION}/iperf-${IPERF3_VERSION}.tar.gz \
     && tar xzf iperf-${IPERF3_VERSION}.tar.gz \
-    && cd iperf-${IPERF3_VERSION} \
-    && ./configure --prefix=/usr/local \
+    && mv iperf-${IPERF3_VERSION} iperf-src
+WORKDIR /tmp/iperf-src
+RUN ./configure --prefix=/usr/local \
     && make \
     && make install
 
