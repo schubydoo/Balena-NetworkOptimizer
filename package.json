@@ -5,5 +5,8 @@
   "description": "balenaOS port of Ozark Connect's Network Optimizer for UniFi consoles.",
   "repository": "git+https://github.com/schubydoo/Balena-NetworkOptimizer.git",
   "author": "Schuby <schubydoo@users.noreply.github.com>",
-  "license": "SEE LICENSE IN LICENSE"
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=20"
+  }
 }

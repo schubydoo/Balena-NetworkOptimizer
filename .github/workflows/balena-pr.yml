@@ -7,60 +7,28 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
-  test-aarch64:
-    runs-on: ubuntu-latest
-    # Skip deploys from forks — they don't have access to repo secrets
+  deploy:
+    runs-on: ubuntu-24.04
+    # Only run on PRs from the same repo — fork PRs lack access to repo secrets.
     if: github.event.pull_request.head.repo.full_name == github.repository
-    concurrency:
-      group: balena-pr-${{ github.event.pull_request.number }}-aarch64
-      cancel-in-progress: ${{ github.event.action != 'closed' }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: build
-        uses: balena-io/deploy-to-balena-action@v2.2.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Deploy to aarch64 (${{ secrets.BALENA_FLEET_PR_AARCH64 }})
+        uses: balena-io/deploy-to-balena-action@a1ad4ddddc982b50533e86d3fdc4731c5184f497 # v2.2.3
         with:
           balena_token: ${{ secrets.BALENA_API_TOKEN }}
           fleet: ${{ secrets.BALENA_FLEET_PR_AARCH64 }}
-      - if: steps.build.outputs.release_id != ''
-        run: echo "release_id=${{ steps.build.outputs.release_id }} version=${{ steps.build.outputs.version }}"
-
-  test-amd64:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    concurrency:
-      group: balena-pr-${{ github.event.pull_request.number }}-amd64
-      cancel-in-progress: ${{ github.event.action != 'closed' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: build
-        uses: balena-io/deploy-to-balena-action@v2.2.0
+      - name: Deploy to amd64 (${{ secrets.BALENA_FLEET_PR_AMD64 }})
+        if: ${{ !cancelled() }}
+        uses: balena-io/deploy-to-balena-action@a1ad4ddddc982b50533e86d3fdc4731c5184f497 # v2.2.3
         with:
           balena_token: ${{ secrets.BALENA_API_TOKEN }}
           fleet: ${{ secrets.BALENA_FLEET_PR_AMD64 }}
-      - if: steps.build.outputs.release_id != ''
-        run: echo "release_id=${{ steps.build.outputs.release_id }} version=${{ steps.build.outputs.version }}"
-
-  test-arm7hf:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    concurrency:
-      group: balena-pr-${{ github.event.pull_request.number }}-arm7hf
-      cancel-in-progress: ${{ github.event.action != 'closed' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: build
-        uses: balena-io/deploy-to-balena-action@v2.2.0
+      - name: Deploy to armv7hf (${{ secrets.BALENA_FLEET_PR_ARMV7HF }})
+        if: ${{ !cancelled() }}
+        uses: balena-io/deploy-to-balena-action@a1ad4ddddc982b50533e86d3fdc4731c5184f497 # v2.2.3
         with:
           balena_token: ${{ secrets.BALENA_API_TOKEN }}
           fleet: ${{ secrets.BALENA_FLEET_PR_ARMV7HF }}
-      - if: steps.build.outputs.release_id != ''
-        run: echo "release_id=${{ steps.build.outputs.release_id }} version=${{ steps.build.outputs.version }}"

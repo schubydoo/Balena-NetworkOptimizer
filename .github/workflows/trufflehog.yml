@@ -13,13 +13,11 @@ permissions:
 jobs:
   scan:
     name: TruffleHog secret scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
-
-      - name: TruffleHog
-        uses: trufflesecurity/trufflehog@main
+          fetch-depth: 0 # full history so scheduled runs scan all commits
+      - uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # v3.95.3
         with:
           extra_args: --only-verified

@@ -22,9 +22,9 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           ref: ${{ github.ref_type == 'tag' && github.ref || format('refs/tags/v{0}', inputs.version) }}
@@ -50,7 +50,7 @@ jobs:
 
       - name: Deploy to production fleet
         id: deploy
-        uses: balena-io/deploy-to-balena-action@v2.2.0
+        uses: balena-io/deploy-to-balena-action@a1ad4ddddc982b50533e86d3fdc4731c5184f497 # v2.2.3
         with:
           balena_token: ${{ secrets.BALENA_API_TOKEN }}
           fleet: ${{ secrets.BALENA_FLEET_PROD }}
