@@ -3,6 +3,7 @@ name: Publish to GHCR
 on:
   push:
     tags: ['v*']
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -63,7 +64,7 @@ jobs:
           context: ${{ matrix.service }}
           file: ${{ matrix.service }}/Dockerfile.template
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: true
+          push: ${{ github.event_name != 'workflow_dispatch' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
@@ -74,11 +75,13 @@ jobs:
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Sign image (keyless)
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         env:
           DIGEST: ${{ steps.push.outputs.digest }}
         run: cosign sign --yes "${{ matrix.image }}@${DIGEST}"
 
       - name: Generate SPDX SBOM
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           image: ${{ matrix.image }}@${{ steps.push.outputs.digest }}
@@ -87,6 +90,7 @@ jobs:
           artifact-name: ${{ matrix.service }}-sbom.spdx.json
 
       - name: Publish release with SBOM
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           tag_name: ${{ github.ref_name }}
