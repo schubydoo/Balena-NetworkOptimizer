@@ -1,0 +1,99 @@
+name: Release
+
+# Runs on every push to main. If the HEAD commit contains a `Change-type:`
+# trailer it bumps the version, updates VERSION/package.json/balena.yml and
+# CHANGELOG.md, commits back, then pushes a vX.Y.Z tag which triggers the
+# deploy and GHCR-publish workflows. Commits with no Change-type are silently
+# skipped so housekeeping merges never cut a release.
+#
+# To prevent an infinite loop the version-bump commit itself has no
+# Change-type trailer, so this workflow exits at the "detect" step on the
+# second run.
+
+on:
+  push:
+    branches: [main]
+    tags-ignore: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Detect Change-type
+        id: detect
+        run: |
+          CHANGE_TYPE=$(git log -1 --pretty=%B | grep -oP '(?<=Change-type: )(major|minor|patch)' | head -1 || true)
+          echo "change_type=${CHANGE_TYPE}" >> "$GITHUB_OUTPUT"
+          if [ -z "$CHANGE_TYPE" ]; then
+            echo "No Change-type trailer — skipping release."
+          else
+            echo "Change-type: $CHANGE_TYPE"
+          fi
+
+      - name: Calculate new version
+        if: steps.detect.outputs.change_type != ''
+        id: version
+        run: |
+          CURRENT=$(cat VERSION | tr -d '[:space:]')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "${{ steps.detect.outputs.change_type }}" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          NEW="${MAJOR}.${MINOR}.${PATCH}"
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "new=${NEW}" >> "$GITHUB_OUTPUT"
+          echo "Bumping ${CURRENT} → ${NEW}"
+
+      - name: Update version files
+        if: steps.detect.outputs.change_type != ''
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+        run: |
+          echo "$NEW_VERSION" > VERSION
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp \
+            && mv package.json.tmp package.json
+          sed -i "s/^version: .*/version: ${NEW_VERSION}/" balena.yml
+
+      - name: Prepend CHANGELOG entry
+        if: steps.detect.outputs.change_type != ''
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+        run: |
+          # Collect commits since last tag (or all if no tag yet)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty="- %s" --no-merges)
+          else
+            COMMITS=$(git log --pretty="- %s" --no-merges)
+          fi
+          ENTRY="## v${NEW_VERSION}\n${COMMITS}"
+          if [ -f CHANGELOG.md ]; then
+            BODY=$(cat CHANGELOG.md)
+            printf '%s\n\n%s\n' "# Changelog" "${ENTRY}" > CHANGELOG.md
+            echo "$BODY" | grep -v '^# Changelog' >> CHANGELOG.md
+          else
+            printf '# Changelog\n\n%s\n' "${ENTRY}" > CHANGELOG.md
+          fi
+
+      - name: Commit and tag
+        if: steps.detect.outputs.change_type != ''
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+        run: |
+          git config user.name "Schuby"
+          git config user.email "schubydoo@users.noreply.github.com"
+          git add VERSION package.json balena.yml CHANGELOG.md
+          git commit -m "Release ${NEW_VERSION}"
+          git tag "v${NEW_VERSION}"
+          git push origin main
+          git push origin "v${NEW_VERSION}"

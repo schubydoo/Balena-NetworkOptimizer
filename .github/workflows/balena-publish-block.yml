@@ -1,12 +1,8 @@
 name: balena deploy (prod)
 
-# Trigger on tag pushes (which is what `gh release create vX.Y.Z` produces).
-# We can't use the `release` event directly: balena-io/deploy-to-balena-action
-# only supports `pull_request`, `push`, and `workflow_dispatch` and errors with
-# "Unsure how to proceed with event: release" otherwise.
-#
-# `workflow_dispatch` is kept as the manual escape hatch for redeploys (e.g.,
-# the v0.2.0 tag already exists and you want to rebuild without retagging).
+# Trigger on tag pushes produced by release.yml.
+# `workflow_dispatch` is the manual escape hatch for redeploys when the tag
+# already exists and you want to rebuild without retagging.
 
 on:
   push:
@@ -42,13 +38,13 @@ jobs:
           fi
           TAG_VERSION="${TAG#v}"
           FILE_VERSION="$(cat VERSION | tr -d '[:space:]')"
-          YAML_VERSION="$(awk '/^version:/ {print $2; exit}' .balena/balena.yml | tr -d '[:space:]')"
+          YAML_VERSION="$(awk '/^version:/ {print $2; exit}' balena.yml | tr -d '[:space:]')"
           PKG_VERSION="$(node -p "require('./package.json').version")"
           echo "tag=$TAG_VERSION  VERSION=$FILE_VERSION  balena.yml=$YAML_VERSION  package.json=$PKG_VERSION"
           if [ "$TAG_VERSION" != "$FILE_VERSION" ] \
               || [ "$FILE_VERSION" != "$YAML_VERSION" ] \
               || [ "$YAML_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Version mismatch. Tag, VERSION, .balena/balena.yml, and package.json must all match."
+            echo "::error::Version mismatch. Tag, VERSION, balena.yml, and package.json must all match."
             exit 1
           fi
 
@@ -61,3 +57,10 @@ jobs:
 
       - if: steps.deploy.outputs.release_id != ''
         run: echo "release_id=${{ steps.deploy.outputs.release_id }} version=${{ steps.deploy.outputs.version }}"
+
+      - name: Set release note on balena fleet
+        if: steps.deploy.outputs.release_id != ''
+        run: node scripts/set-release-note.mjs
+        env:
+          BALENA_API_TOKEN: ${{ secrets.BALENA_API_TOKEN }}
+          BALENA_FLEET: ${{ secrets.BALENA_FLEET_PROD }}
