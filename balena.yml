@@ -1,0 +1,53 @@
+name: Balena-NetworkOptimizer
+type: sw.block
+version: 0.2.0
+description: >
+  balenaOS port of Ozark Connect's Network Optimizer for UniFi — monitors
+  and optimizes WAN performance with built-in speedtest, iperf3, and
+  SQM/QoS support. Source-built per architecture (amd64, arm64, armv7).
+
+assets:
+  repository:
+    type: blob.asset
+    data:
+      url: https://github.com/schubydoo/Balena-NetworkOptimizer
+
+defaultDeviceType: genericx86-64-ext
+supportedDeviceTypes:
+  # amd64
+  - genericx86-64-ext
+  - intel-nuc
+  - up-board
+  # aarch64
+  - generic-aarch64
+  - raspberrypi3-64
+  - raspberrypi4-64
+  - raspberrypi5
+  - raspberrypi0-2w-64
+  - cm4-ioboard
+  - jetson-nano
+  - jetson-xavier-nx-devkit
+  - jetson-agx-xavier-devkit
+  # armv7hf
+  - raspberrypi3
+  - raspberrypi2
+  - beaglebone-black
+  - balena-fin
+
+data:
+  defaultUrl: "{{.PORT_3005}}"
+  post-provisioning: |
+    Add the services from this repo to your `docker-compose.yml` and set the
+    following variables on your device or fleet in balenaCloud:
+
+    **Required:**
+    - `APP_HOST` — hostname or IP of your UniFi console
+    - `APP_USERNAME` / `APP_PASSWORD` — UniFi credentials
+
+    **Optional:**
+    - `TZ` — timezone (default: America/Chicago)
+    - `IPERF3_SERVER_ENABLED` — enable iperf3 on port 5201 (default: false)
+    - `LOG_LEVEL` — logging verbosity (default: Information)
+
+    See the [README](https://github.com/schubydoo/Balena-NetworkOptimizer#readme)
+    for the full variable reference.
