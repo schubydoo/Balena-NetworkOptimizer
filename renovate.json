@@ -57,6 +57,17 @@
       "matchDatasources": ["docker"],
       "matchPackageNames": ["nginx"],
       "versioning": "semver"
+    },
+    {
+      "matchDatasources": ["github-releases"],
+      "matchDepNames": ["Ozark-Connect/NetworkOptimizer"],
+      "groupName": "upstream NetworkOptimizer",
+      "addLabels": ["upstream"]
+    },
+    {
+      "matchDatasources": ["github-releases"],
+      "matchDepNames": ["esnet/iperf"],
+      "groupName": "iperf3"
     }
   ],
   "customManagers": [
@@ -69,6 +80,13 @@
       "datasourceTemplate": "repology",
       "versioningTemplate": "loose",
       "depNameTemplate": "alpine_3_20/{{{packageName}}}"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["Dockerfile\\.template$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)=(?<currentValue>[^\\n]+)"
+      ]
     }
   ]
 }
