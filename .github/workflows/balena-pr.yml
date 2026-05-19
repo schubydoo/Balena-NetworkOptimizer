@@ -14,6 +14,11 @@ jobs:
     # Only run on PRs from the same repo — fork PRs lack access to repo secrets.
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Deploy to aarch64 (${{ secrets.BALENA_FLEET_PR_AARCH64 }})
         uses: balena-io/deploy-to-balena-action@a1ad4ddddc982b50533e86d3fdc4731c5184f497 # v2.2.3
