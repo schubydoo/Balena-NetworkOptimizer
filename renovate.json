@@ -9,6 +9,9 @@
   "timezone": "America/New_York",
   "labels": ["dependencies"],
   "commitBody": "Signed-off-by: renovate[bot] <renovate[bot]@users.noreply.github.com>",
+  "pre-commit": {
+    "enabled": true
+  },
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
@@ -16,31 +19,36 @@
     },
     {
       "matchManagers": ["github-actions"],
-      "matchPackagePatterns": ["^actions/"],
+      "matchPackageNames": ["actions/**"],
       "groupName": "github actions"
     },
     {
       "matchManagers": ["github-actions"],
-      "matchPackagePatterns": ["^docker/"],
+      "matchPackageNames": ["docker/**"],
       "groupName": "docker actions"
     },
     {
       "matchManagers": ["github-actions"],
-      "matchPackagePatterns": [
-        "codeql",
-        "scorecard",
-        "trivy",
-        "cosign",
-        "anchore/sbom-action",
-        "softprops/action-gh-release",
-        "trufflesecurity/trufflehog"
+      "matchPackageNames": [
+        "/codeql/",
+        "/scorecard/",
+        "/trivy/",
+        "/cosign/",
+        "/sbom-action/",
+        "/action-gh-release/",
+        "/trufflehog/",
+        "/harden-runner/"
       ],
       "groupName": "security actions"
     },
     {
       "matchManagers": ["github-actions"],
-      "matchPackagePatterns": ["^balena-io/"],
+      "matchPackageNames": ["balena-io/**"],
       "groupName": "balena actions"
+    },
+    {
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks"
     },
     {
       "matchDatasources": ["docker"],
@@ -49,7 +57,7 @@
     },
     {
       "matchDatasources": ["docker"],
-      "matchPackagePatterns": ["^mcr\\.microsoft\\.com/dotnet/"],
+      "matchPackageNames": ["mcr.microsoft.com/dotnet/**"],
       "groupName": "dotnet images"
     },
     {
