@@ -16,7 +16,10 @@ on:
     tags-ignore: ['v*']
 
 permissions:
-  contents: write
+  # GITHUB_TOKEN needs no write scope: the version-bump commit and tag are
+  # pushed with RELEASE_TOKEN (a PAT) configured on actions/checkout, not
+  # with GITHUB_TOKEN. Keep this minimal (Scorecard TokenPermissions).
+  contents: read
 
 jobs:
   release:
