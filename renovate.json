@@ -39,6 +39,11 @@
       "groupName": "security actions"
     },
     {
+      "matchManagers": ["github-actions"],
+      "matchPackagePatterns": ["^balena-io/"],
+      "groupName": "balena actions"
+    },
+    {
       "matchDatasources": ["docker"],
       "matchPackageNames": ["alpine"],
       "versioning": "semver"

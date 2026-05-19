@@ -4,7 +4,8 @@
 # is set via balenaCloud Service or Device variables — NOT in this file —
 # so the supervisor injects them at container start.
 #
-# Bumping the upstream version: change UPSTREAM_VERSION in both build args.
+# Upstream version is pinned in each Dockerfile.template's ARG UPSTREAM_VERSION
+# and managed by Renovate — do not add build.args overrides here.
 #
 # Upstream source:
 #   https://github.com/Ozark-Connect/NetworkOptimizer
@@ -20,9 +21,6 @@ services:
   network-optimizer:
     build:
       context: ./network-optimizer
-      args:
-        UPSTREAM_VERSION: v1.15.10
-        IPERF3_VERSION: "3.20"
     network_mode: host
     restart: always
     volumes:
@@ -39,8 +37,6 @@ services:
   network-optimizer-speedtest:
     build:
       context: ./network-optimizer-speedtest
-      args:
-        UPSTREAM_VERSION: v1.15.10
     restart: always
     ports:
       - "3005:3000"
