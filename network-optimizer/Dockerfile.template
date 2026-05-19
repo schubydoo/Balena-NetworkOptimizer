@@ -11,8 +11,21 @@ RUN apk add --no-cache git && \
     git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
 
-# --- Stage 1: build .NET app
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# --- Stage 1: build .NET app (SDK runs on the BUILD platform, not the target)
+# Upstream's entrypoint runs `dotnet NetworkOptimizer.Web.dll` (verified in
+# upstream docker/entrypoint.sh @ v1.15.10) — framework-dependent, portable
+# IL; the native apphost is never executed. So the publish output is
+# architecture-neutral and the per-target aspnet runtime stage can COPY it
+# as-is. Pinning this stage to BUILDPLATFORM keeps buildx multi-arch builds
+# (GHCR mirror) from running the .NET SDK under QEMU: `dotnet restore`
+# SIGABRTs (exit 134) under arm/v7 emulation (CI run 26080536696). Pinning
+# QEMU (commit 56e73fc) did not help and is abandoned.
+# BUILDPLATFORM is auto-populated by BuildKit (buildx). balena builds each
+# arch natively on the device (never cross-builds, no QEMU), so this is a
+# correct no-op there. The `uname -m` / `dpkg --print-architecture` logic in
+# later stages is unaffected.
+ARG BUILDPLATFORM
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0 AS build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.15.10
 ARG VERSION
