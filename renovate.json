@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":maintainLockFilesWeekly"
+  ],
+  "schedule": ["before 5am on Monday"],
+  "timezone": "America/New_York",
+  "labels": ["dependencies"],
+  "commitBody": "Signed-off-by: renovate[bot] <renovate[bot]@users.noreply.github.com>",
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackagePatterns": ["^actions/"],
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackagePatterns": ["^docker/"],
+      "groupName": "docker actions"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackagePatterns": [
+        "codeql",
+        "scorecard",
+        "trivy",
+        "cosign",
+        "anchore/sbom-action",
+        "softprops/action-gh-release",
+        "trufflesecurity/trufflehog"
+      ],
+      "groupName": "security actions"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["alpine"],
+      "versioning": "semver"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackagePatterns": ["^mcr\\.microsoft\\.com/dotnet/"],
+      "groupName": "dotnet images"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["golang"],
+      "groupName": "golang image"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["nginx"],
+      "versioning": "semver"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["Dockerfile\\.template$"],
+      "matchStrings": [
+        "# renovate: alpine-package=(?<packageName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)_VERSION=(?<currentValue>[^\\n]+)"
+      ],
+      "datasourceTemplate": "repology",
+      "versioningTemplate": "loose",
+      "depNameTemplate": "alpine_3_20/{{{packageName}}}"
+    }
+  ]
+}
