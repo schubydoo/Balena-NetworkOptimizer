@@ -3,8 +3,7 @@
   "extends": [
     "config:recommended",
     ":dependencyDashboard",
-    ":semanticCommits",
-    ":maintainLockFilesWeekly"
+    ":semanticCommits"
   ],
   "schedule": ["before 5am on Monday"],
   "timezone": "America/New_York",
