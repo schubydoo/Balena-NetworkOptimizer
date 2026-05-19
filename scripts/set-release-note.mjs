@@ -22,6 +22,28 @@ if (!token || !fleet) {
   process.exit(1);
 }
 
+// Validate the API endpoint before it flows into any request URL. This is a
+// CI-only script, but pinning the host to balena-cloud.com means a
+// misconfigured or tampered BALENA_API_URL can never send the auth token to
+// an unexpected origin (defence-in-depth; also sanitizes the CodeQL
+// js/request-forgery taint).
+let apiBase;
+try {
+  apiBase = new URL(apiUrl);
+} catch {
+  console.error(`Invalid BALENA_API_URL: ${apiUrl}`);
+  process.exit(1);
+}
+const hostAllowed =
+  apiBase.hostname === 'balena-cloud.com' ||
+  apiBase.hostname === 'api.balena-cloud.com' ||
+  apiBase.hostname.endsWith('.balena-cloud.com');
+if (apiBase.protocol !== 'https:' || !hostAllowed) {
+  console.error(`Refusing to use non-balena API host: ${apiUrl}`);
+  process.exit(1);
+}
+const apiOrigin = apiBase.origin;
+
 const headers = {
   Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json',
@@ -43,7 +65,7 @@ if (!note) {
 
 // Look up the fleet app ID from the slug
 const fleetRes = await fetch(
-  `${apiUrl}/v6/application?$filter=slug eq '${encodeURIComponent(fleet)}'&$select=id`,
+  `${apiOrigin}/v6/application?$filter=slug eq '${encodeURIComponent(fleet)}'&$select=id`,
   { headers },
 );
 if (!fleetRes.ok) {
@@ -59,7 +81,7 @@ if (!appId) {
 
 // Fetch the latest finalized release
 const releaseRes = await fetch(
-  `${apiUrl}/v6/release?$filter=belongs_to__application eq ${appId} and status eq 'success'&$orderby=created_at desc&$top=1&$select=id,commit`,
+  `${apiOrigin}/v6/release?$filter=belongs_to__application eq ${appId} and status eq 'success'&$orderby=created_at desc&$top=1&$select=id,commit`,
   { headers },
 );
 if (!releaseRes.ok) {
@@ -74,7 +96,7 @@ if (!release) {
 }
 
 // PATCH the release note
-const patchRes = await fetch(`${apiUrl}/v6/release(${release.id})`, {
+const patchRes = await fetch(`${apiOrigin}/v6/release(${release.id})`, {
   method: 'PATCH',
   headers,
   body: JSON.stringify({ note }),
