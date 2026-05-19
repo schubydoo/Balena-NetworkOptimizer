@@ -1,6 +1,6 @@
 {
   "name": "balena-network-optimizer",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "balenaOS port of Ozark Connect's Network Optimizer for UniFi consoles.",
   "repository": "git+https://github.com/schubydoo/Balena-NetworkOptimizer.git",

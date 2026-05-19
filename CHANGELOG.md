@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.2\n- Add HEALTHCHECK to speedtest container
+- chore(deps): update pre-commit hooks
+- chore(deps): update github/codeql-action action to v4
+- chore(deps): update github actions
+- chore(deps): update pre-commit hooks
+- chore(deps): update golang docker tag to v1.26
+- chore(config): migrate config renovate.json
+- Pin older QEMU for GHCR multi-arch build (.NET arm/v7 SIGABRT)
+- Drop package-lock.json handling from release.yml
+- Renovate: track pre-commit, group harden-runner, drop deprecated matchPackagePatterns
+
 ## v0.2.1\n- Use WORKDIR instead of RUN cd for iperf3 build
 - Add workflow_dispatch trigger to CodeQL
 - Add actions language to CodeQL matrix

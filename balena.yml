@@ -1,6 +1,6 @@
 name: Balena-NetworkOptimizer
 type: sw.block
-version: 0.2.1
+version: 0.2.2
 description: >
   balenaOS port of Ozark Connect's Network Optimizer for UniFi — monitors
   and optimizes WAN performance with built-in speedtest, iperf3, and
