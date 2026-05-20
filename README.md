@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-BSL%201.1-blue)](LICENSE)
 
 A [balenaOS](https://www.balena.io/os) port of
-[Ozark Connect's Network Optimizer](https://github.com/OzarkConnect/NetworkOptimizer)
+[Ozark Connect's Network Optimizer](https://github.com/Ozark-Connect/NetworkOptimizer)
 for UniFi consoles. Source-built per architecture (amd64, arm64, armv7) directly from
 the upstream release tags.
 
@@ -64,7 +64,7 @@ The core application is **Network Optimizer for UniFi** by
 [Ozark Connect](https://ozarkconnect.net), licensed under the
 [Business Source License 1.1](LICENSE).
 
-- Upstream repository: [OzarkConnect/NetworkOptimizer](https://github.com/OzarkConnect/NetworkOptimizer)
+- Upstream repository: [Ozark-Connect/NetworkOptimizer](https://github.com/Ozark-Connect/NetworkOptimizer)
 - Commercial use (more than 3 sites) requires a separate license from Ozark Connect —
   contact [tj@ozarkconnect.net](mailto:tj@ozarkconnect.net)
 - License converts to Apache 2.0 on 2028-01-01

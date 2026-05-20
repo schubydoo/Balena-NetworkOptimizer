@@ -9,7 +9,7 @@ Security scope is divided accordingly:
 
 Vulnerabilities in the .NET application, UniFi integration logic, Go speedtest/wansteer
 binaries, or any other code sourced from
-[OzarkConnect/NetworkOptimizer](https://github.com/OzarkConnect/NetworkOptimizer)
+[Ozark-Connect/NetworkOptimizer](https://github.com/Ozark-Connect/NetworkOptimizer)
 should be reported **upstream** via that repository's security policy.
 Do not open issues or advisories here for upstream vulnerabilities.
 
