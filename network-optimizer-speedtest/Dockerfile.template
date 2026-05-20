@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1.24
 # Multi-stage build for the OpenSpeedTest service.
 # Clones upstream and replicates upstream's docker/openspeedtest/Dockerfile.
 
