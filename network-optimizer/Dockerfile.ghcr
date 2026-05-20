@@ -75,36 +75,46 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
 # --- Stage 2: build uwnspeedtest Go binaries
 #  - Local (matches container arch): server-side WAN speed tests
 #  - Gateway (always linux/arm64): SSH-deployed to UniFi gateways
-# Detect arch via `uname -m` rather than ${TARGETARCH}: balena's classic
-# builder doesn't auto-populate the BuildKit TARGETARCH ARG, so the kernel's
-# own view (set by Docker per-image-arch, including under QEMU emulation) is
-# what we need.
-FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS uwnspeedtest-build
+# Cross-compile on BUILDPLATFORM (amd64 GitHub runner) using Go's built-in
+# cross-compile support. Replaces the prior uname-m-based detection that ran
+# the toolchain under QEMU emulation on the arm legs. The TARGETARCH and
+# TARGETVARIANT ARGs are BuildKit-populated (buildx/GHCR only); balena's
+# classic builder is not BuildKit, which is why Dockerfile.template keeps
+# the native per-arch uname-based build. See CLAUDE.md gotcha #7 for the
+# full list of sanctioned divergences between the two files.
+FROM --platform=${BUILDPLATFORM} golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS uwnspeedtest-build
+ARG TARGETARCH
+ARG TARGETVARIANT
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 WORKDIR /src
 COPY --link --from=source /src/src/cfspeedtest cfspeedtest
 COPY --link --from=source /src/src/uwnspeedtest uwnspeedtest
 WORKDIR /src/uwnspeedtest
-RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
-    case "$(uname -m)" in \
-        x86_64)  LOCAL_GOARCH=amd64 LOCAL_GOARM= ;; \
-        aarch64) LOCAL_GOARCH=arm64 LOCAL_GOARM= ;; \
-        armv7l)  LOCAL_GOARCH=arm   LOCAL_GOARM=7 ;; \
-        armv6l)  LOCAL_GOARCH=arm   LOCAL_GOARM=6 ;; \
-        i686)    LOCAL_GOARCH=386   LOCAL_GOARM= ;; \
-        *) echo "Unsupported arch: $(uname -m)"; exit 1 ;; \
-    esac && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${LOCAL_GOARCH} GOARM=${LOCAL_GOARM} \
+RUN set -eux; \
+    VERSION_TRIM="${UPSTREAM_VERSION#v}"; \
+    case "${TARGETARCH}/${TARGETVARIANT}" in \
+        amd64/*) LOCAL_GOARCH=amd64 LOCAL_GOARM= ;; \
+        arm64/*) LOCAL_GOARCH=arm64 LOCAL_GOARM= ;; \
+        arm/v7)  LOCAL_GOARCH=arm   LOCAL_GOARM=7 ;; \
+        arm/v6)  LOCAL_GOARCH=arm   LOCAL_GOARM=6 ;; \
+        *) echo "Unsupported TARGETARCH/TARGETVARIANT: ${TARGETARCH}/${TARGETVARIANT}" >&2; exit 1 ;; \
+    esac; \
+    CGO_ENABLED=0 GOOS=linux GOARCH="${LOCAL_GOARCH}" GOARM="${LOCAL_GOARM}" \
         go build -trimpath \
         -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
-        -o /uwnspeedtest-local . && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
+        -o /uwnspeedtest-local .; \
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+        go build -trimpath \
         -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
         -o /uwnspeedtest-gateway .
 
 # --- Stage 3: build wansteer (gateway-only, always linux/arm64)
-FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS wansteer-build
+# Cross-compile on BUILDPLATFORM (amd64). wansteer is always built for
+# arm64 (UniFi gateway target) regardless of the container arch, so this
+# stage doesn't need TARGETARCH branching — only the FROM line changes
+# vs Dockerfile.template's native version.
+FROM --platform=${BUILDPLATFORM} golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS wansteer-build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 WORKDIR /src
