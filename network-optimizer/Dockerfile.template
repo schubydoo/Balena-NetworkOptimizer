@@ -63,7 +63,7 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
 # builder doesn't auto-populate the BuildKit TARGETARCH ARG, so the kernel's
 # own view (set by Docker per-image-arch, including under QEMU emulation) is
 # what we need.
-FROM golang:1.26-alpine AS uwnspeedtest-build
+FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS uwnspeedtest-build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 WORKDIR /src
@@ -88,7 +88,7 @@ RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
         -o /uwnspeedtest-gateway .
 
 # --- Stage 3: build wansteer (gateway-only, always linux/arm64)
-FROM golang:1.26-alpine AS wansteer-build
+FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS wansteer-build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 WORKDIR /src
