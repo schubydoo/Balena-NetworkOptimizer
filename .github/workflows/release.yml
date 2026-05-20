@@ -1,25 +1,30 @@
 name: Release
 
-# Runs on every push to main. If the HEAD commit contains a `Change-type:`
-# trailer it bumps the version, updates VERSION/package.json/balena.yml and
-# CHANGELOG.md, commits back, then pushes a vX.Y.Z tag which triggers the
-# deploy and GHCR-publish workflows. Commits with no Change-type are silently
-# skipped so housekeeping merges never cut a release.
+# Manually triggered (workflow_dispatch). Scans every commit on main since
+# the last vX.Y.Z tag, collects their `Change-type:` trailers, picks the
+# highest level (major > minor > patch), and cuts a single release that
+# bundles all pending Change-typed commits. Housekeeping merges (no
+# Change-type) are ignored. If no commit since the last tag carries a
+# trailer the workflow exits at the "detect" step.
 #
-# To prevent an infinite loop the version-bump commit itself has no
-# Change-type trailer, so this workflow exits at the "detect" step on the
-# second run.
+# This replaces the per-push trigger so multiple Renovate PRs merged in
+# the same release window batch into one release instead of N. Future:
+# revisit release-please (https://github.com/googleapis/release-please)
+# for a release-PR-driven model.
 
 on:
-  push:
-    branches: [main]
-    tags-ignore: ['v*']
+  workflow_dispatch: {}
 
 permissions:
   # GITHUB_TOKEN needs no write scope: the version-bump commit and tag are
   # pushed with RELEASE_TOKEN (a PAT) configured on actions/checkout, not
   # with GITHUB_TOKEN. Keep this minimal (Scorecard TokenPermissions).
   contents: read
+
+concurrency:
+  # Guard against double-clicks of "Run workflow" racing on the tag push.
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -39,15 +44,34 @@ jobs:
         with:
           node-version-file: package.json
 
-      - name: Detect Change-type
+      - name: Detect highest Change-type since last tag
         id: detect
         run: |
-          CHANGE_TYPE=$(git log -1 --pretty=%B | grep -oP '(?<=Change-type: )(major|minor|patch)' | head -1 || true)
+          LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            RANGE="${LAST_TAG}..HEAD"
+            echo "Scanning ${RANGE}"
+          else
+            RANGE="HEAD"
+            echo "No prior tag — scanning all of HEAD"
+          fi
+          TYPES=$(git log $RANGE --pretty=%B | grep -oP '(?<=Change-type: )(major|minor|patch)' || true)
+          if echo "$TYPES" | grep -qx 'major'; then
+            CHANGE_TYPE=major
+          elif echo "$TYPES" | grep -qx 'minor'; then
+            CHANGE_TYPE=minor
+          elif echo "$TYPES" | grep -qx 'patch'; then
+            CHANGE_TYPE=patch
+          else
+            CHANGE_TYPE=""
+          fi
           echo "change_type=${CHANGE_TYPE}" >> "$GITHUB_OUTPUT"
           if [ -z "$CHANGE_TYPE" ]; then
-            echo "No Change-type trailer — skipping release."
+            echo "No Change-type trailers in range — skipping release."
           else
-            echo "Change-type: $CHANGE_TYPE"
+            echo "Highest Change-type in range: $CHANGE_TYPE"
+            echo "All trailers found:"
+            echo "$TYPES" | sort -u
           fi
 
       - name: Calculate new version
