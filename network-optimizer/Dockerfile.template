@@ -56,48 +56,49 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
         --no-restore \
         -p:MinVerVersionOverride=${MINVER_VERSION}
 
-# --- Stage 2: build uwnspeedtest Go binaries
-#  - Local (matches container arch): server-side WAN speed tests
-#  - Gateway (always linux/arm64): SSH-deployed to UniFi gateways
+# --- Stage 2: build all Go binaries (uwnspeedtest + wansteer)
+#  - uwnspeedtest local: matches container arch (in-container WAN tests)
+#  - uwnspeedtest gateway: always linux/arm64 (SSH-deployed to UniFi gateways)
+#  - wansteer gateway: always linux/arm64 (SSH-deployed)
+# Each binary is named with its final `-linux-<arch>` suffix so the runtime
+# stage can copy /binaries/ in one shot without a rename dance. On arm64
+# the local and gateway uwnspeedtest binaries are functionally identical
+# and share the file `uwnspeedtest-linux-arm64`.
+#
 # Detect arch via `uname -m` rather than ${TARGETARCH}: balena's classic
 # builder doesn't auto-populate the BuildKit TARGETARCH ARG, so the kernel's
 # own view (set by Docker per-image-arch, including under QEMU emulation) is
 # what we need.
-FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS uwnspeedtest-build
+FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS go-build
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 WORKDIR /src
 COPY --link --from=source /src/src/cfspeedtest cfspeedtest
 COPY --link --from=source /src/src/uwnspeedtest uwnspeedtest
-WORKDIR /src/uwnspeedtest
-RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
-    case "$(uname -m)" in \
-        x86_64)  LOCAL_GOARCH=amd64 LOCAL_GOARM= ;; \
-        aarch64) LOCAL_GOARCH=arm64 LOCAL_GOARM= ;; \
-        armv7l)  LOCAL_GOARCH=arm   LOCAL_GOARM=7 ;; \
-        armv6l)  LOCAL_GOARCH=arm   LOCAL_GOARM=6 ;; \
-        i686)    LOCAL_GOARCH=386   LOCAL_GOARM= ;; \
-        *) echo "Unsupported arch: $(uname -m)"; exit 1 ;; \
-    esac && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${LOCAL_GOARCH} GOARM=${LOCAL_GOARM} \
-        go build -trimpath \
-        -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
-        -o /uwnspeedtest-local . && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
-        -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
-        -o /uwnspeedtest-gateway .
-
-# --- Stage 3: build wansteer (gateway-only, always linux/arm64)
-FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS wansteer-build
-# renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
-ARG UPSTREAM_VERSION=v1.16.10
-WORKDIR /src
 COPY --link --from=source /src/src/wansteer wansteer
-WORKDIR /src/wansteer
-RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
-        -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
-        -o /wansteer-gateway .
+
+RUN set -eux; \
+    VERSION_TRIM="${UPSTREAM_VERSION#v}"; \
+    case "$(uname -m)" in \
+        x86_64)  GOARCH=amd64 GOARM= ARCH_SUFFIX=amd64 ;; \
+        aarch64) GOARCH=arm64 GOARM= ARCH_SUFFIX=arm64 ;; \
+        armv7l)  GOARCH=arm   GOARM=7 ARCH_SUFFIX=arm   ;; \
+        armv6l)  GOARCH=arm   GOARM=6 ARCH_SUFFIX=arm   ;; \
+        i686)    GOARCH=386   GOARM= ARCH_SUFFIX=386   ;; \
+        *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p /binaries; \
+    cd /src/uwnspeedtest; \
+    CGO_ENABLED=0 GOOS=linux GOARCH="${GOARCH}" GOARM="${GOARM}" \
+        go build -trimpath -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
+        -o "/binaries/uwnspeedtest-linux-${ARCH_SUFFIX}" .; \
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+        go build -trimpath -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
+        -o /binaries/uwnspeedtest-linux-arm64 .; \
+    cd /src/wansteer; \
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+        go build -trimpath -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
+        -o /binaries/wansteer-linux-arm64 .
 
 # --- Stage 4: build iperf3 from source (latest stable)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:9b5222b0ff8e9eb991a7c1a64b25f0f771d21ccc05dfa1c834f5668ffd9cd73f AS iperf-build
@@ -155,34 +156,24 @@ RUN ldconfig
 # Published .NET app
 COPY --link --from=build /app/publish ./
 
-# Tools dir + Go binaries.
-# Gateway binaries always live at their fixed arm64 names. The local
-# uwnspeedtest binary lands first at a temp path, then gets renamed to
-# `uwnspeedtest-linux-<arch>` based on the runtime image's actual arch
-# (the .NET app looks for that filename pattern).
-RUN mkdir -p /app/tools
-COPY --link --from=uwnspeedtest-build /uwnspeedtest-local /tmp/uwnspeedtest-local
-COPY --link --from=uwnspeedtest-build /uwnspeedtest-gateway /app/tools/uwnspeedtest-linux-arm64
-COPY --link --from=wansteer-build /wansteer-gateway /app/tools/wansteer-linux-arm64
-RUN case "$(dpkg --print-architecture)" in \
-        amd64) ARCH_SUFFIX=amd64 ;; \
-        arm64) ARCH_SUFFIX=arm64 ;; \
-        armhf) ARCH_SUFFIX=arm   ;; \
-        i386)  ARCH_SUFFIX=386   ;; \
-        *) echo "Unsupported arch: $(dpkg --print-architecture)"; exit 1 ;; \
-    esac && \
-    mv /tmp/uwnspeedtest-local /app/tools/uwnspeedtest-linux-${ARCH_SUFFIX}
+# All Go binaries land here with their final names already set:
+#   uwnspeedtest-linux-<host-arch>   (local, for in-container WAN tests)
+#   uwnspeedtest-linux-arm64         (gateway, SSH-deployed to UniFi)
+#   wansteer-linux-arm64             (gateway, SSH-deployed to UniFi)
+# On arm64 hosts the first two share the same arm64 binary and resolve to
+# one file in /app/tools — the .NET app's filename contract is preserved.
+COPY --link --from=go-build /binaries/ /app/tools/
 
-# Volume mount points so upstream's chown succeeds on first run
+# Tools dir already created above by the COPY; this ensures volume mounts
+# (so upstream's entrypoint chown succeeds on first run).
 RUN mkdir -p /app/data /app/ssh-keys /app/logs
 
-# Upstream's entrypoint — chowns volumes, drops to 'app' user, execs dotnet
-COPY --link --from=source /src/docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Our balena start.sh wrapper — env dump for troubleshooting, then exec upstream entrypoint
-COPY start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
+# Upstream's entrypoint — chowns volumes, drops to 'app' user, execs dotnet.
+# Our balena start.sh wrapper — env dump for troubleshooting, then exec
+# upstream entrypoint. Both copied with executable bit via --chmod=755 so
+# we don't need a follow-up `RUN chmod +x`.
+COPY --link --chmod=755 --from=source /src/docker/entrypoint.sh /entrypoint.sh
+COPY --link --chmod=755 start.sh /usr/local/bin/start.sh
 
 ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_HTTP_PORTS=8042 \
