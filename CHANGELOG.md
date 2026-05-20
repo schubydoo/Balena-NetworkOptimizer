@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.3.0\n- chore(deps): pin golang docker tag to 91eda97
+- chore(deps): pin dependencies
+- chore(deps): pin dependencies
+- Pin Docker base images by digest via Renovate
+- Fix upstream repo URL typo: OzarkConnect → Ozark-Connect
+- chore(deps): update docker/dockerfile docker tag to v1.24
+- chore(workflows): Add Dockerfile.template to trivyignore for speedtest
+- chore(deps): update dependency ozark-connect/networkoptimizer to v1.16.10
+- chore(deps): update dependency esnet/iperf to v3.21
+- Switch release.yml to manual workflow_dispatch + range-scan
+- Map Renovate updates to Change-type trailers; cover Dockerfile.ghcr
+- chore(deps): update dependency esnet/iperf to v3.21
+- Suppress Trivy AVD-DS-0002 (intentional root-then-gosu init)
+- Move the .NET cross-build to a GHCR-only Dockerfile; revert template
+- Cross-build .NET stage on BUILDPLATFORM to fix GHCR arm/v7
+
 ## v0.2.2\n- Add HEALTHCHECK to speedtest container
 - chore(deps): update pre-commit hooks
 - chore(deps): update github/codeql-action action to v4
