@@ -4,13 +4,20 @@
 # Mirrors upstream's docker/Dockerfile so feature parity is preserved.
 #
 # *** GHCR / buildx ONLY — NOT for balena. ***
-# This is a copy of Dockerfile.template that differs in EXACTLY ONE place:
-# Stage 1's `FROM` is pinned to --platform=$BUILDPLATFORM so the .NET SDK
-# cross-builds natively on the amd64 GitHub runner (no QEMU -> no exit 134).
+# Copy of Dockerfile.template with three sanctioned cross-build divergences,
+# each fenced by `# DRIFT-ALLOWED: BEGIN` / `# DRIFT-ALLOWED: END`:
+#   1. Stage 1 .NET FROM — pinned to --platform=$BUILDPLATFORM so the SDK
+#      cross-builds natively (avoids exit 134 under arm/v7 QEMU).
+#   2. Stage go-build — pinned to BUILDPLATFORM, uses TARGETARCH/TARGETVARIANT
+#      instead of `uname -m` for the GOARCH/GOARM mapping.
+#   3. Stage iperf-build — completely different base (debian:bookworm-slim
+#      with crossbuild-essential-* + multiarch libssl-dev) so the C build
+#      runs native instead of under QEMU.
 # balena builds every arch on native workers (no QEMU) and uses
-# Dockerfile.template, whose classic (non-BuildKit) builder rejects an
-# empty `--platform=`. Keep this file in sync with Dockerfile.template for
-# EVERY stage except the Stage 1 FROM line below.
+# Dockerfile.template, whose classic (non-BuildKit) builder doesn't
+# populate BUILDPLATFORM/TARGETARCH and rejects empty `--platform=`.
+# The drift-check CI (.github/workflows/dockerfile-drift.yml) enforces
+# that the two files stay byte-identical outside those three fences.
 
 # --- Stage 0: fetch upstream source at the pinned version
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS source
@@ -20,22 +27,16 @@ RUN apk add --no-cache git && \
     git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
 
+# DRIFT-ALLOWED: BEGIN  Stage 1 .NET FROM — pinned to --platform=$BUILDPLATFORM so the .NET SDK cross-builds natively on the amd64 GitHub runner instead of running under arm/v7 QEMU (which used to SIGABRT at `dotnet restore` exit 134). balena's classic builder doesn't populate BUILDPLATFORM and rejects an empty --platform=, which is why this lives only in Dockerfile.ghcr.
 # --- Stage 1: build .NET app (SDK runs on the BUILD platform, not the target)
 # Upstream's entrypoint runs `dotnet NetworkOptimizer.Web.dll` (verified in
 # upstream docker/entrypoint.sh @ v1.15.10) — framework-dependent, portable
 # IL; the native apphost is never executed. So the publish output is
 # architecture-neutral and the per-target aspnet runtime stage can COPY it
-# as-is. Pinning this stage to BUILDPLATFORM keeps buildx multi-arch builds
-# (the GHCR mirror) from running the .NET SDK under QEMU: `dotnet restore`
-# SIGABRTs (exit 134) under arm/v7 emulation (CI run 26080536696). Pinning
-# QEMU (commit 56e73fc) did not help and is abandoned.
-# BUILDPLATFORM is auto-populated by BuildKit (buildx/GHCR only). balena's
-# classic builder is NOT BuildKit, leaves it empty, and rejects an empty
-# `--platform=` — which is why this cross-build lives in this GHCR-only file
-# and Dockerfile.template (built by balena's native per-arch workers) does
-# NOT carry it. THIS LINE is the only intended difference from the template.
+# as-is. Pinning QEMU (commit 56e73fc) did not help and is abandoned.
 ARG BUILDPLATFORM
 FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0@sha256:dc8430e6024d454edadad1e160e1973be3cabbb7125998ef190d9e5c6adf7dbb AS build
+# DRIFT-ALLOWED: END
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 ARG VERSION
@@ -72,6 +73,7 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
         --no-restore \
         -p:MinVerVersionOverride=${MINVER_VERSION}
 
+# DRIFT-ALLOWED: BEGIN  Stage go-build — Dockerfile.template builds natively on balena's per-arch workers via uname -m; this file cross-compiles on BUILDPLATFORM (amd64 runner) via TARGETARCH/TARGETVARIANT. Same /binaries/ outputs either way.
 # --- Stage 2: build all Go binaries (uwnspeedtest + wansteer)
 #  - uwnspeedtest local: matches container arch (in-container WAN tests)
 #  - uwnspeedtest gateway: always linux/arm64 (SSH-deployed to UniFi gateways)
@@ -119,7 +121,9 @@ RUN set -eux; \
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
         go build -trimpath -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
         -o /binaries/wansteer-linux-arm64 .
+# DRIFT-ALLOWED: END
 
+# DRIFT-ALLOWED: BEGIN  Stage iperf-build — Dockerfile.template builds natively on the target-arch dotnet/aspnet image (balena's per-arch workers); this file cross-compiles via Debian crossbuild-essential + multiarch libssl-dev to keep buildx off QEMU.
 # --- Stage 4: build iperf3 from source (latest stable)
 # Cross-compiled on BUILDPLATFORM (amd64 GitHub runner) using Debian's
 # crossbuild-essential-* toolchains and multiarch libssl-dev:<arch>, so the
@@ -178,6 +182,7 @@ RUN set -eux; \
     fi; \
     make -j"$(nproc)"; \
     make install
+# DRIFT-ALLOWED: END
 
 # --- Stage 5: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:9b5222b0ff8e9eb991a7c1a64b25f0f771d21ccc05dfa1c834f5668ffd9cd73f AS runtime
