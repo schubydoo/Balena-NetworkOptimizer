@@ -15,6 +15,7 @@ misconfigurations:
     paths:
       - "network-optimizer/Dockerfile.template"
       - "network-optimizer/Dockerfile.ghcr"
+      - "network-optimizer-speedtest/Dockerfile.template"
     statement: >-
       Container intentionally starts as root so upstream's docker/entrypoint.sh
       can chown mounted volumes, then drops to the unprivileged 'app' user via
