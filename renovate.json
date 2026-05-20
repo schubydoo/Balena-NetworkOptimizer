@@ -126,6 +126,18 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)=(?<currentValue>[^\\n]+)"
       ]
+    },
+    {
+      "description": "Track tonistiigi/binfmt (QEMU image) referenced in docker/setup-qemu-action's `image:` input. Standard github-actions manager doesn't see this — it only follows `uses:` refs.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.*\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "image:\\s+(?<depName>tonistiigi/binfmt):(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "loose"
     }
   ]
 }
