@@ -18,8 +18,10 @@ RUN apk add --no-cache git && \
     git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
 
+# DRIFT-ALLOWED: BEGIN  Stage 1 .NET FROM — Dockerfile.ghcr pins this to --platform=$BUILDPLATFORM for cross-build; balena's classic builder rejects an empty --platform=.
 # --- Stage 1: build .NET app
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:dc8430e6024d454edadad1e160e1973be3cabbb7125998ef190d9e5c6adf7dbb AS build
+# DRIFT-ALLOWED: END
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 ARG VERSION
@@ -56,6 +58,7 @@ RUN MINVER_VERSION="${VERSION:-${UPSTREAM_VERSION#v}}" && \
         --no-restore \
         -p:MinVerVersionOverride=${MINVER_VERSION}
 
+# DRIFT-ALLOWED: BEGIN  Stage go-build — Dockerfile.ghcr cross-compiles on BUILDPLATFORM (amd64 runner) via TARGETARCH/TARGETVARIANT; this file builds natively on balena's per-arch workers via uname -m. Same /binaries/ outputs either way.
 # --- Stage 2: build all Go binaries (uwnspeedtest + wansteer)
 #  - uwnspeedtest local: matches container arch (in-container WAN tests)
 #  - uwnspeedtest gateway: always linux/arm64 (SSH-deployed to UniFi gateways)
@@ -99,7 +102,9 @@ RUN set -eux; \
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
         go build -trimpath -ldflags "-s -w -X main.version=${VERSION_TRIM}" \
         -o /binaries/wansteer-linux-arm64 .
+# DRIFT-ALLOWED: END
 
+# DRIFT-ALLOWED: BEGIN  Stage iperf-build — Dockerfile.ghcr cross-compiles via Debian crossbuild-essential + multiarch libssl-dev; this file builds natively on the target-arch dotnet/aspnet image (balena's per-arch workers run native, no QEMU).
 # --- Stage 4: build iperf3 from source (latest stable)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:9b5222b0ff8e9eb991a7c1a64b25f0f771d21ccc05dfa1c834f5668ffd9cd73f AS iperf-build
 # renovate: datasource=github-releases depName=esnet/iperf
@@ -127,6 +132,7 @@ WORKDIR /tmp/iperf-src
 RUN ./configure --prefix=/usr/local \
     && make \
     && make install
+# DRIFT-ALLOWED: END
 
 # --- Stage 5: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:9b5222b0ff8e9eb991a7c1a64b25f0f771d21ccc05dfa1c834f5668ffd9cd73f AS runtime

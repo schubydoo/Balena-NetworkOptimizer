@@ -1,0 +1,8 @@
+# Force LF line endings on text files that the drift-check + balena-cli
+# need to parse byte-identically across Windows / macOS / Linux clones.
+* text=auto
+
+network-optimizer/Dockerfile.* text eol=lf
+network-optimizer-speedtest/Dockerfile.* text eol=lf
+scripts/*.sh text eol=lf
+**/start.sh text eol=lf
