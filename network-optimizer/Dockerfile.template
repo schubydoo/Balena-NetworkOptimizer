@@ -103,9 +103,20 @@ RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:9b5222b0ff8e9eb991a7c1a64b25f0f771d21ccc05dfa1c834f5668ffd9cd73f AS iperf-build
 # renovate: datasource=github-releases depName=esnet/iperf
 ARG IPERF3_VERSION=3.21
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential curl libssl-dev ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# apt under QEMU emulation (arm64/arm-v7 legs of the GHCR mirror build) is
+# prone to transient `Unable to connect to ports.ubuntu.com:80` failures —
+# Release 0.3.0's GHCR publish hit this. Retry the whole update+install up
+# to 3 times before giving up.
+RUN for i in 1 2 3; do \
+        if apt-get update && apt-get install -y --no-install-recommends \
+            build-essential curl libssl-dev ca-certificates; then \
+            break; \
+        fi; \
+        echo "apt attempt $i failed; retrying in 5s..." >&2; \
+        if [ "$i" = 3 ]; then exit 1; fi; \
+        sleep 5; \
+    done \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /tmp
 RUN curl -fLO --retry 3 --retry-delay 5 \
         https://github.com/esnet/iperf/releases/download/${IPERF3_VERSION}/iperf-${IPERF3_VERSION}.tar.gz \
