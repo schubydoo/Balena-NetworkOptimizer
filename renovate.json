@@ -74,19 +74,36 @@
       "matchDatasources": ["github-releases"],
       "matchDepNames": ["Ozark-Connect/NetworkOptimizer"],
       "groupName": "upstream NetworkOptimizer",
-      "addLabels": ["upstream"]
+      "addLabels": ["upstream"],
+      "prPriority": 10
     },
     {
       "matchDatasources": ["github-releases"],
       "matchDepNames": ["esnet/iperf"],
       "groupName": "iperf3"
+    },
+    {
+      "description": "Runtime deps (app, iperf3, base images) emit Change-type matching the bump level so a release is cut. CI deps (github-actions, pre-commit) fall through to the default commitBody and do not trigger a release.",
+      "matchManagers": ["dockerfile", "custom.regex"],
+      "matchUpdateTypes": ["major"],
+      "commitBody": "Signed-off-by: renovate[bot] <renovate[bot]@users.noreply.github.com>\nChange-type: major"
+    },
+    {
+      "matchManagers": ["dockerfile", "custom.regex"],
+      "matchUpdateTypes": ["minor"],
+      "commitBody": "Signed-off-by: renovate[bot] <renovate[bot]@users.noreply.github.com>\nChange-type: minor"
+    },
+    {
+      "matchManagers": ["dockerfile", "custom.regex"],
+      "matchUpdateTypes": ["patch", "digest"],
+      "commitBody": "Signed-off-by: renovate[bot] <renovate[bot]@users.noreply.github.com>\nChange-type: patch"
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/Dockerfile\\.template$/"
+        "/Dockerfile\\.(template|ghcr)$/"
       ],
       "matchStrings": [
         "# renovate: alpine-package=(?<packageName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)_VERSION=(?<currentValue>[^\\n]+)"
@@ -98,7 +115,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/Dockerfile\\.template$/"
+        "/Dockerfile\\.(template|ghcr)$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\n]+)\\nARG (?:[A-Z0-9_]+)=(?<currentValue>[^\\n]+)"
