@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.24
+# syntax=docker/dockerfile:1.24@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
 # Multi-stage build for the Network Optimizer .NET service.
 # Stage 0 clones upstream at the pinned tag; subsequent stages build from /src.
 # Mirrors upstream's docker/Dockerfile so feature parity is preserved.
@@ -11,7 +11,7 @@
 # not BuildKit, leaves BUILDPLATFORM empty, and rejects an empty --platform=.
 
 # --- Stage 0: fetch upstream source at the pinned version
-FROM alpine:3.20 AS source
+FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS source
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
 ARG UPSTREAM_VERSION=v1.16.10
 RUN apk add --no-cache git && \
