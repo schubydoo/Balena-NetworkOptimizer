@@ -18,6 +18,12 @@
       "pinDigests": true
     },
     {
+      "description": "Pin Docker base images by manifest-list digest (Scorecard PinnedDependencies). Manifest-list digests preserve multi-arch — balena native per-arch workers and buildx cross-builds both resolve the right platform image transparently.",
+      "matchManagers": ["dockerfile"],
+      "matchDatasources": ["docker"],
+      "pinDigests": true
+    },
+    {
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["actions/**"],
       "groupName": "github actions"
