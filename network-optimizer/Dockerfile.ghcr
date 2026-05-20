@@ -221,10 +221,12 @@ RUN mkdir -p /app/data /app/ssh-keys /app/logs
 
 # Upstream's entrypoint — chowns volumes, drops to 'app' user, execs dotnet.
 # Our balena start.sh wrapper — env dump for troubleshooting, then exec
-# upstream entrypoint. Both copied with executable bit via --chmod=755 so
-# we don't need a follow-up `RUN chmod +x`.
-COPY --link --chmod=755 --from=source /src/docker/entrypoint.sh /entrypoint.sh
-COPY --link --chmod=755 start.sh /usr/local/bin/start.sh
+# upstream entrypoint. `COPY --chmod=` would be tidier but balena's classic
+# (non-BuildKit) cloud builder explicitly rejects it; stick with the
+# separate `RUN chmod +x`.
+COPY --link --from=source /src/docker/entrypoint.sh /entrypoint.sh
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/start.sh
 
 ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_HTTP_PORTS=8042 \
