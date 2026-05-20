@@ -118,7 +118,7 @@ RUN VERSION_TRIM="${UPSTREAM_VERSION#v}" && \
 # --- Stage 4: build iperf3 from source (latest stable)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS iperf-build
 # renovate: datasource=github-releases depName=esnet/iperf
-ARG IPERF3_VERSION=3.20
+ARG IPERF3_VERSION=3.21
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential curl libssl-dev ca-certificates \
     && rm -rf /var/lib/apt/lists/*
