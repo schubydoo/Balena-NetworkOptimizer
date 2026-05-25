@@ -22,7 +22,7 @@
 # --- Stage 0: fetch upstream source at the pinned version
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS source
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
-ARG UPSTREAM_VERSION=v1.16.10
+ARG UPSTREAM_VERSION=v1.17.5
 RUN apk add --no-cache git && \
     git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
@@ -38,7 +38,7 @@ ARG BUILDPLATFORM
 FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0@sha256:c0790639332692a0d56cdd81ed581cfd24d040d9839764c138994866df89a3b6 AS build
 # DRIFT-ALLOWED: END
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
-ARG UPSTREAM_VERSION=v1.16.10
+ARG UPSTREAM_VERSION=v1.17.5
 ARG VERSION
 WORKDIR /src
 
@@ -94,7 +94,7 @@ FROM --platform=${BUILDPLATFORM} golang:1.26-alpine@sha256:91eda9776261207ea25fd
 ARG TARGETARCH
 ARG TARGETVARIANT
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
-ARG UPSTREAM_VERSION=v1.16.10
+ARG UPSTREAM_VERSION=v1.17.5
 WORKDIR /src
 COPY --link --from=source /src/src/cfspeedtest cfspeedtest
 COPY --link --from=source /src/src/uwnspeedtest uwnspeedtest
