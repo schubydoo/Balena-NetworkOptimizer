@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.0\n- chore(deps): update dependency ozark-connect/networkoptimizer to v1.17.5
+- chore(deps): update docker actions
+- chore(deps): update dotnet images
+- chore(deps): update security actions
+- Mark drift-check script as executable in git tree
+- Add Dockerfile drift-check CI
+- Revert COPY --chmod=755 — balena's classic builder rejects it
+- Consolidate Go stages, drop runtime rename dance, use COPY --chmod
+- Bump tonistiigi/binfmt v8.1.5 -> v10.2.1 and let Renovate track it
+- chore(deps): pin debian docker tag to 0104b33
+- Cross-compile Go stages in Dockerfile.ghcr to avoid QEMU
+- Cross-compile iperf3 in Dockerfile.ghcr to avoid QEMU emulation
+- Revert "[StepSecurity] Apply security best practices"
+- Retry apt install up to 3x in iperf-build stage
+- [StepSecurity] Apply security best practices
+
 ## v0.3.0\n- chore(deps): pin golang docker tag to 91eda97
 - chore(deps): pin dependencies
 - chore(deps): pin dependencies
