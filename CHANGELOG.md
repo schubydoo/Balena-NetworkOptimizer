@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.1\n- chore(deps): update dependency ozark-connect/networkoptimizer to v1.17.18
+- chore(deps): update docker/setup-qemu-action digest to 0611638
+
 ## v0.4.0\n- chore(deps): update dependency ozark-connect/networkoptimizer to v1.17.5
 - chore(deps): update docker actions
 - chore(deps): update dotnet images
