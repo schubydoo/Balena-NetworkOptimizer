@@ -1,1 +1,7 @@
 * @schubydoo
+
+# Renovate-managed paths — no code owner, so dependency PRs don't auto-request review.
+/.pre-commit-config.yaml
+/.github/workflows/
+Dockerfile.template
+Dockerfile.ghcr
