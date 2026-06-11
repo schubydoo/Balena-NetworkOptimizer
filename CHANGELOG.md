@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.0\n- chore(deps): update security actions
+- chore: stop Renovate PRs auto-requesting code-owner review
+- chore(deps): update golang image
+- chore(deps): update dotnet images
+- chore(deps): update github actions to v6.0.3
+- chore(deps): update debian:bookworm-slim docker digest to 96e378d
+- chore(deps): update upstream networkoptimizer to v1.19.5
+- chore(deps): update balena actions to v2.2.13
+- chore(deps): update upstream networkoptimizer to v1.19.2
+- chore(deps): update golang image
+- ci: validate inputs.version before using it in checkout ref
+- ci: pass github/inputs context via env in balena-publish-block
+- ci: remove StepSecurity harden-runner from all workflows
+- chore(deps): update balena-io/deploy-to-balena-action action to v2.2.12
+- chore(deps): update pre-commit hook pre-commit/mirrors-eslint to v10.4.1
+
 ## v0.4.1\n- chore(deps): update dependency ozark-connect/networkoptimizer to v1.17.18
 - chore(deps): update docker/setup-qemu-action digest to 0611638
 
