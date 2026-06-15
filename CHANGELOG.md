@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.0\n- chore(deps): update pre-commit hooks to v10.5.0
+- chore(deps): update upstream networkoptimizer to v1.20.4
+- chore(deps): update balena actions to v2.3.0
+
 ## v0.5.0\n- chore(deps): update security actions
 - chore: stop Renovate PRs auto-requesting code-owner review
 - chore(deps): update golang image
