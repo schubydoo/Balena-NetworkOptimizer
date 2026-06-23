@@ -5,7 +5,7 @@
 # --- Stage 0: fetch upstream source at the pinned version
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS source
 # renovate: datasource=github-releases depName=Ozark-Connect/NetworkOptimizer
-ARG UPSTREAM_VERSION=v1.20.4
+ARG UPSTREAM_VERSION=v1.22.2
 RUN apk add --no-cache git && \
     git clone --depth 1 --branch ${UPSTREAM_VERSION} \
     https://github.com/Ozark-Connect/NetworkOptimizer.git /src
