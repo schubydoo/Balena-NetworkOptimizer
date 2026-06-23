@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.0\n- chore(deps): update golang image
+- chore(deps): update balena actions
+- chore(deps): update github actions
+- chore(deps): update docker/dockerfile docker tag to v1.25
+- chore(deps): update security actions
+- chore(deps): update upstream networkoptimizer
+
 ## v0.6.0\n- chore(deps): update pre-commit hooks to v10.5.0
 - chore(deps): update upstream networkoptimizer to v1.20.4
 - chore(deps): update balena actions to v2.3.0
