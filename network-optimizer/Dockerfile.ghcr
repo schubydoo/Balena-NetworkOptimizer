@@ -135,7 +135,7 @@ RUN set -eux; \
 # libssl.so.3 path (/usr/lib/<triple>/libssl.so.3), which exists in the
 # Ubuntu 24.04-based runtime stage. Stays in sync with Dockerfile.template
 # for every stage EXCEPT this one (see CLAUDE.md gotcha #7).
-FROM --platform=${BUILDPLATFORM} debian:bookworm-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS iperf-build
+FROM --platform=${BUILDPLATFORM} debian:bookworm-slim@sha256:60eac759739651111db372c07be67863818726f754804b8707c90979bda511df AS iperf-build
 ARG TARGETARCH
 ARG TARGETVARIANT
 # renovate: datasource=github-releases depName=esnet/iperf
